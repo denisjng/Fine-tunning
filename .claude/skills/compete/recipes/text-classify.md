@@ -4,6 +4,7 @@
 Input is text; output is a label, several labels, a score (regression) or per-token tags (NER).
 
 ## Pick the model
+- If the rules fix the base model, use it. Otherwise spend ≤15 min on a day-of check: search the Hugging Face Hub and recent leaderboards for a newer model of the same kind and size; switch only if it fits the GPU, its license is allowed, and it loads with the installed libraries. Else use the defaults below.
 - Default (English): `microsoft/deberta-v3-base`.
 - Long texts (>512 tokens) or need speed: `answerdotai/ModernBERT-base`.
 - Multilingual: `FacebookAI/xlm-roberta-base`.

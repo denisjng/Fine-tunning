@@ -4,6 +4,7 @@
 Data is rows and columns (CSV/parquet) of numbers and categories; target is a class or a number. No neural fine-tuning: gradient boosting wins here.
 
 ## Pick the model
+- Day-of check (≤15 min): search recent winning solutions for similar tabular competitions; stay with gradient boosting unless the rules or the data clearly favour something else.
 - Default: LightGBM.
 - Many categorical columns: CatBoost. Ensemble partner: XGBoost.
 - Smallest fallback: LightGBM with defaults and 500 trees.

@@ -4,6 +4,7 @@
 Inputs are audio; output is a transcript (ASR) or a label (audio classification).
 
 ## Pick the model
+- If the rules fix the base model, use it. Otherwise spend ≤15 min on a day-of check: search the Hugging Face Hub and recent leaderboards for a newer model of the same kind and size; switch only if it fits the GPU, its license is allowed, and it loads with the installed libraries. Else use the defaults below.
 - ASR default: `openai/whisper-small`. Levers: `openai/whisper-medium`, `openai/whisper-large-v3-turbo`.
 - Audio classification default: `MIT/ast-finetuned-audioset-10-10-0.4593`. Speech-like classes (speaker, emotion, keyword): `facebook/wav2vec2-base`.
 - Smallest fallback: `openai/whisper-small` with max_steps cut in half.
