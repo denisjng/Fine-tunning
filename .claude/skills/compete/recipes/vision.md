@@ -16,6 +16,7 @@ Inputs are images; output is a class, several labels, boxes (detection) or masks
 - Augmentation: RandomResizedCrop + horizontal flip (no flip if orientation matters: text, digits, medical laterality).
 - Detection: image size 640, lr 1e-4 (backbone 1e-5), 30–50 epochs.
 - Segmentation: image size 512, AdamW lr 6e-5, batch 8, 40–80 epochs, keep the best epoch by val mIoU or Dice.
+- Speed tips: AMP + `channels_last`, images pre-resized once into `data/derived/`, `num_workers` 4–8, train at low resolution first and raise it as a late lever.
 
 ## Script outline
 - `timm.create_model(name, pretrained=True, num_classes=K)`; normalization from `timm.data.resolve_data_config`; torchvision transforms; plain PyTorch loop or HF `Trainer`.

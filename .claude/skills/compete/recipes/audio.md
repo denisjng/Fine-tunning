@@ -13,6 +13,7 @@ Inputs are audio; output is a transcript (ASR) or a label (audio classification)
 - All audio resampled to 16 kHz mono.
 - ASR: lr 1e-5, warmup 10% of steps, batch 16 (use accumulation), ≈3 epochs as max_steps, bf16/fp16, gradient checkpointing, `predict_with_generate=True`, generation_max_length 225.
 - Classification: lr 3e-5, batch 16, 5–10 epochs, clips cut or padded to 10 s.
+- Speed tips: resample and compute features once into `data/derived/`; sort by duration to cut padding; batched generation for ASR inference.
 
 ## Script outline
 - ASR: `WhisperProcessor` + `WhisperForConditionalGeneration`, `Seq2SeqTrainer`, a padding data collator, WER/CER via `evaluate` (needs `jiwer`). Set language and task on the processor/generation config.

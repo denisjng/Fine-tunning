@@ -15,6 +15,7 @@ Input is text; output is a label, several labels, a score (regression) or per-to
 - lr 2e-5 (base) / 1e-5 (large); batch 16–32; epochs 3; warmup_ratio 0.1; weight_decay 0.01.
 - max_length 256; raise to 512 if more than 10% of texts get truncated.
 - bf16 if supported; DeBERTa-v3 can produce NaN in fp16 → use bf16 or fp32.
+- Speed tips: `group_by_length=True` (dynamic padding), ModernBERT for long texts, tokenize once and cache.
 - Evaluate every epoch; keep the best checkpoint by the competition metric.
 
 ## Script outline
