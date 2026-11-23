@@ -35,7 +35,7 @@ Deadlines are offsets from `start` in `brief.md` (default `2026-11-28 09:00`, `e
 | +14h00 | 23:00 | final submission deadline |
 | +15h00 | 24:00 | end |
 
-`end` = the organizer's final submission deadline in this laptop's local time (convert UTC). If `end` ≠ start+15h, the last four deadlines move with it: stop loops = end − 4h, verify = end − 2h, final submission = end − 1h. Use these in the block table and Blocks 5–6.
+`end` = the organizer's final submission deadline in this laptop's local time (convert UTC). If `end` ≠ start+15h, the last four deadlines move with it: stop loops = end − 4h, verify = end − 2h, final submission = end − 1h. Use these in the block table and Blocks 5–6. Clock times in block headings and steps are the defaults; when `start` or `end` differ, the named deadline is what counts.
 
 ## Which block am I in (first match wins)
 
@@ -79,7 +79,7 @@ No training before this block is done.
 4. Predict test → `submissions/001_baseline.<ext>`; check it and submit (see Submitting). Then fill val, LB, `kept: yes` and the `submission` cell.
 5. Tell the user the baseline is in and ask them to start autonomous mode with `/loop /compete`.
 
-Hard rule: at 13:00 with no submission → if row `001` is running with ETA before 13:30, wait for it; else stop it (`cancelled`) and run the card's smallest fallback as row `002` with ~10 min of training, then steps 3–4 for that row. Never two jobs on one GPU. A weak valid submission beats none.
+Hard rule: at the baseline hard rule (default 13:00) with no submission → if row `001` is running with ETA within 30 min, wait for it; else stop it (`cancelled`) and run the card's smallest fallback as row `002` with ~10 min of training, then steps 3–4 for that row. Never two jobs on one GPU. A weak valid submission beats none.
 
 ## Block 4 — Improvement loops (12:30–20:00)
 
@@ -114,14 +114,14 @@ Leaderboard rule: the public LB is often a small slice of test. Never tune towar
 
 No untested ideas.
 
-1. A loop row still `running`: let it finish if its ETA is before 21:00 and treat it as a normal loop (Block 4 steps 6–8); otherwise stop it and mark it `cancelled`.
+1. A loop row still `running`: let it finish if its ETA is before stop-loops + 1h (default 21:00) and treat it as a normal loop (Block 4 steps 6–8); otherwise stop it and mark it `cancelled`.
 2. Decide the final model on val, before any retraining: the best kept row, or the average of the top two kept models' predictions if they are different kinds, within noise of each other, and the average scores ≥ the best single model on val (probabilities or numbers only; for generated text keep the single best).
-3. Add the `FINAL` row with status `running`. If the rules allow, ETA (train + predict) × 1.3 ends before 22:00, and it passes the Block 4 budget check, retrain the chosen model(s) on train+val with the best run's epoch count; otherwise use the kept checkpoints as they are. If the `FINAL` row is `crashed`, do not retrain again: add a new `FINAL` row that uses the kept checkpoints as they are. If the `FINAL` row is already `running`, check its job instead of launching again.
+3. Add the `FINAL` row with status `running`. If the rules allow, ETA (train + predict) × 1.3 ends before verify (default 22:00), and it passes the Block 4 budget check, retrain the chosen model(s) on train+val with the best run's epoch count; otherwise use the kept checkpoints as they are. If the `FINAL` row is `crashed`, do not retrain again: add a new `FINAL` row that uses the kept checkpoints as they are. If the `FINAL` row is already `running`, check its job instead of launching again.
 4. Predict, check, submit as `submissions/NNN_FINAL.<ext>`; set the `FINAL` row to `done` and fill its `submission` cell.
 
 ## Block 6 — Verify & final submit (22:00–23:00)
 
-1. If the `FINAL` row is still `running`: wait if its ETA is before 22:30 (verify + 30 min), then do Block 5 step 4; else stop it, mark it `cancelled`, and pick from the files already submitted.
+1. If the `FINAL` row is still `running`: wait if its ETA is before verify + 30 min (default 22:30), then do Block 5 step 4; else stop it, mark it `cancelled`, and pick from the files already submitted.
 2. `data:validate-data` on the final predictions: ranges match the train target, class distribution close to train, not constant, IDs right. The FINAL row's val = the chosen row's val (it trained on val); check that FINAL test predictions agree closely with the chosen row's.
 3. `check_submission.py` → `OK` (`superpowers:verification-before-completion`: claim valid only after it passes).
 4. Pick the final submission(s): good on both val and LB. If `final_pick` is "user selects N": the N best by the leaderboard rule (best val + best LB if they differ and N ≥ 2).
