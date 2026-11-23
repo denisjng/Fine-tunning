@@ -1,27 +1,38 @@
 # Saturday 2026-11-28: competition checklist
 
-## Before 09:00
-- [ ] Laptop on power, phone notifications on, food ready.
-- [ ] Hugging Face account with credits and a write token at hand (huggingface.co/settings/tokens).
-- [ ] Kaggle competition: `kaggle.json` in `C:\Users\<you>\.kaggle\`, and the competition rules accepted on the website.
-- [ ] Optional: if the rules or data are already published, run `/compete` early. Setup and data analysis can happen before 09:00.
+## Hands-free route (recommended): set up once, then walk away
 
-## 09:00
-1. Create a folder for the competition, e.g. `C:\Users\popes\Desktop\Fine-tunning\comp`.
-2. Open Claude Code in the `Fine-tunning` folder and type `/loop /compete`.
-3. In the first message, paste the competition URL or rules and say:
-   - the competition folder path;
-   - your budget cap (e.g. "$40");
-   - "yes, you may submit on your own after every stage" (only if the platform has a CLI or API).
-4. When asked, run `hf auth login` yourself and paste your token. Never paste it into the chat.
+### One-time setup (any time before Saturday 09:00, about 15 minutes)
+1. Install the Claude Code CLI in PowerShell. Either:
+   - `irm https://claude.ai/install.ps1 | iex`, or
+   - `npm install -g @anthropic-ai/claude-code`.
 
-## During the day
-- Watch the status line: best val, submissions used, loops left, next deadline.
-- Steer any time by typing, e.g. "try a bigger model next" or "stop".
-- When Claude says "good moment for a fresh session": open a new session in the same folder and type `/loop /compete`. It resumes from the files.
-- Emergency, at any time: ask "submit best now". `submissions/best.*` is always the current best valid file.
+   Then run `claude` once and log in.
+2. Run `pip install -U huggingface_hub`, then `hf auth login`, and paste your Hugging Face write token yourself.
+3. Kaggle competition: put `kaggle.json` in `C:\Users\popes\.kaggle\` and accept the competition rules on the website.
+4. Open `.claude\skills\compete\run_day.ps1` and set the `$PermissionArgs` line. This is your choice: it decides what the unattended runs may do without asking. The two options and their risks are listed above the line.
+5. Fill every `TODO` in `launch.md`. If the platform only accepts web uploads, set `auto_submit: no`: unattended runs can't submit there, and you'll upload the files listed in `comp\logs\notes.md` yourself.
 
-## Deadlines (defaults; they move if the organizer's deadline is not midnight)
+### Start (any time before 09:00; it waits until `start`)
+From the Fine-tunning folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .claude\skills\compete\run_day.ps1
+```
+
+Leave the window open and the laptop on power. The script keeps Windows awake and starts a fresh Claude run every cycle until the final submission or midnight.
+
+### While it runs (optional; you never have to touch it)
+- Progress: `comp\logs\supervisor.log`, one line per cycle. Each run's full output is in `comp\logs\cycle-NNN.log`, and messages for you are in `comp\logs\notes.md`.
+- Experiments and scores: `comp\experiments.md`.
+- Stop it: create an empty file `comp\STOP`. The current run finishes and nothing new starts.
+
+## Fallback: desktop route (if the CLI route fails)
+1. Open Claude in the `Fine-tunning` folder and type `/loop /compete`.
+2. In the first message: the competition URL or rules, the folder path, your budget, and "yes, you may submit on your own after every stage" (CLI or API platforms only).
+3. When Claude says "good moment for a fresh session", open a new session and type `/loop /compete`. It resumes from the files.
+
+## Deadlines (defaults; they move with `end`)
 | Time | What |
 |---|---|
 | 12:30 | First submission |
