@@ -7,6 +7,7 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 - If the rules fix the base model, use it and skip the search.
 - Otherwise spend ≤15 min: search "best open instruct model <size> <month year>" (Hugging Face trending, open leaderboards); check the license is allowed by the rules.
 - Size by GPU memory (QLoRA 4-bit): 16 GB → ≤8B, 24 GB → ≤14B, 40–80 GB → ≤32B. On a one-day clock prefer ≤8B even on big GPUs: more loops beat a bigger model.
+- If the rules allow prompt-only use of bigger models: a quantized larger instruct model with few-shot prompting (no training) is a lever candidate, and can beat a fine-tuned small one.
 - Smallest fallback (smoke tests, tiny GPU, hard-rule rescue): `Qwen/Qwen2.5-1.5B-Instruct`. Solid default if search finds nothing better: `Qwen/Qwen2.5-7B-Instruct`.
 
 ## Starting hyperparameters
