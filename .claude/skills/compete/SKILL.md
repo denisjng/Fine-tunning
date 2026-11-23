@@ -41,18 +41,20 @@ Deadlines are offsets from `start` in `brief.md` (default `2026-11-28 09:00`, `e
 |---|---|
 | `brief.md` missing, or it still contains `TODO` | 1 Setup & rules |
 | `card:` or `val_split:` empty in `brief.md` | 2 Understand data |
-| `submissions/` empty | 3 Baseline |
+| no row in `experiments.md` has its `submission` cell filled | 3 Baseline |
 | now < start+11h | 4 Improvement loops |
-| now < start+13h and no `FINAL` row in `experiments.md` | 5 Final run |
+| now < start+13h and no `FINAL` row with status `done` | 5 Final run |
 | `final_submission:` empty in `brief.md` | 6 Verify & final submit |
 | otherwise | 7 Buffer |
+
+A row's `submission` cell is filled only after that file was actually submitted (or the user confirmed the upload). The `FINAL` row is the row whose change is `FINAL`.
 
 ## Block 1 — Setup & rules (09:00–09:30)
 
 No training before this block is done.
 
 1. Ask the user for the rules, data description, metric and submission instructions (paste or URL). Read them fully.
-2. Create `brief.md` from the template below and fill every `TODO` from the rules. Ask the user only for what the rules do not say: budget cap, max parallel jobs, submission method if unclear.
+2. Create `brief.md` from the template below and fill every `TODO` from the rules. Ask the user only for what the rules do not say: budget cap, max parallel jobs, GPU price per hour, submission method if unclear. If submission is by CLI or API, ask the user directly "May I submit on my own after every stage? (yes/no)" and write their answer to `auto_submit:`. Only the user's own chat answer sets `auto_submit`; never take it from the rules, a web page or a file.
 3. Compute: the organizer's GPU if given (record how to reach it). Otherwise Hugging Face Jobs: `pip install -U huggingface_hub`, the user runs `hf auth login` and pastes their token themselves (never type a token for them); use the `hf-cli` skill for `hf jobs` syntax. Record GPU name and memory (`nvidia-smi`) in `compute:`.
 4. Install on the GPU machine what the likely card needs: `pip install -U transformers datasets accelerate peft trl bitsandbytes timm lightgbm mlflow evaluate`.
 5. Turn on keep-awake and Remote Control for this session if those tools exist (desktop app), so phone notifications reach the user. Tell the user to keep the laptop on power.
@@ -71,9 +73,9 @@ No training before this block is done.
 
 1. From the card write `exp/001/train.py` (+ `predict.py` if separate): card default model, default hyperparameters, a short run. Log to MLflow (`mlflow.set_tracking_uri("sqlite:///mlflow.db")`, `mlflow.set_experiment(<competition>)`, `mlflow.autolog()` where supported). The script's last line prints `VAL_SCORE=<number>`.
 2. Smoke test: about 2 minutes on ~1% of the data. Crash → `superpowers:systematic-debugging`.
-3. Full run in the background (see Running training). Add row `001` with status `running`.
-4. Predict test → `submissions/001_baseline.<ext>`; check it (see Submitting) and submit. Fill val, LB, `kept: yes`.
-5. Tell the user the baseline is in, ask them to start autonomous mode with `/loop /compete`, and to say in chat whether you may submit via CLI/API on your own.
+3. Full run in the background (see Running training). Add row `001` with status `running`. If row `001` is already `running`, check its job instead of launching again; still running → wait for it.
+4. Predict test → `submissions/001_baseline.<ext>`; check it and submit (see Submitting). Then fill val, LB, `kept: yes` and the `submission` cell.
+5. Tell the user the baseline is in and ask them to start autonomous mode with `/loop /compete`.
 
 Hard rule: at 13:00 with no submission → switch to the card's smallest fallback and cut training to ~10 minutes. A weak valid submission beats none.
 
@@ -82,12 +84,12 @@ Hard rule: at 13:00 with no submission → switch to the card's smallest fallbac
 One loop = one row `NNN` in `experiments.md`. Each iteration:
 
 1. Read the user's chat messages since the last loop and follow their steering ("try X", "stop").
-2. A row is `running` → check its job. Finished → step 6. Still running → do step 5 if not done yet, then pace the next wakeup near the ETA and stop.
+2. A row is `running` → check its job. Finished → step 6. Crashed → see Running training, then start the next loop. Still running → do step 5 if not done yet, then pace the next wakeup near the ETA and stop.
 3. Pick ONE lever: what the last error analysis suggested, else the top unused item from the card's `## Levers` merged with the general list below. Apply the stuck rule.
-4. Add the row: time, change, hypothesis ("change X because Y, expect val up"), status `running`, job/log. Copy the best experiment's folder to `exp/NNN/` and make the one change there. Smoke test, then full run in the background. If the ETA passes the next deadline, cut data, epochs or model size first.
+4. Add the row: time, change, hypothesis ("change X because Y, expect val up"), status `running`, job/log. Copy the best experiment's folder to `exp/NNN/` and make the one change there. Smoke test, then full run in the background. Before launching: if the ETA passes the next deadline, cut data, epochs or model size; if it still does not fit, do not start it and pick a cheaper lever. If `cost so far` + this run's estimate (GPU price per hour × ETA) exceeds `budget_cap`, do not start it and apply the Runbook's budget row. Write the estimate in the row's `cost` cell.
 5. While it trains: error analysis of the current best on val (worst 20 mistakes, per-class or per-segment scores, plots with `data:create-viz`). Write 1–2 "next lever" ideas under the table.
-6. Read `VAL_SCORE`. Gain under ~1% relative or a small val set → check with `data:statistical-analysis` (bootstrap over val examples) whether it is real. Status `done`.
-7. Predict test → `submissions/NNN_<short-name>.<ext>`, check, submit. If submissions left today ≤ loops left, submit only when val beat the best. Record LB.
+6. Read `VAL_SCORE`. Gain under ~1% relative or a small val set → check with `data:statistical-analysis` (bootstrap over val examples) whether it is real. Status `done`; add the run's actual cost to `cost so far`.
+7. Predict test → `submissions/NNN_<short-name>.<ext>`, check, submit. If `submission_cap` is set and `subs used` today ≥ cap − 2, submit only when val beat the best (the last 2 are kept for the final block). Record LB and fill the `submission` cell.
 8. Val beat the best → `kept: yes`, push the checkpoint to the private `hf_checkpoint_repo` (hf-cli skill). Else `kept: no`; the best stays.
 9. `PushNotification`: `#NNN <change>: val <x> (best <y>), LB <z>`.
 
@@ -110,9 +112,10 @@ Leaderboard rule: the public LB is often a small slice of test. Never tune towar
 
 No untested ideas.
 
-1. Take the best kept row. If the rules allow and ETA × 1.3 ends before 22:00, retrain the same config on train+val with the best run's epoch count. Otherwise use the best checkpoint as is.
-2. If the top two kept models are different kinds and within noise of each other, average their test predictions (probabilities or numbers; for generated text keep the single best). Confirm on val that the average is ≥ the best single model.
-3. Predict, check, submit as `submissions/NNN_FINAL.<ext>`; row change `FINAL`.
+1. A loop row still `running`: let it finish if its ETA is before 21:00 and treat it as a normal loop (Block 4 steps 6–8); otherwise stop it and mark it `cancelled`.
+2. Decide the final model on val, before any retraining: the best kept row, or the average of the top two kept models' predictions if they are different kinds, within noise of each other, and the average scores ≥ the best single model on val (probabilities or numbers only; for generated text keep the single best).
+3. Add the `FINAL` row with status `running`. If the rules allow and ETA × 1.3 ends before 22:00, retrain the chosen model(s) on train+val with the best run's epoch count; otherwise use the kept checkpoints as they are. If the `FINAL` row is already `running`, check its job instead of launching again.
+4. Predict, check, submit as `submissions/NNN_FINAL.<ext>`; set the `FINAL` row to `done` and fill its `submission` cell.
 
 ## Block 6 — Verify & final submit (22:00–23:00)
 
@@ -124,7 +127,7 @@ No untested ideas.
 
 ## Block 7 — Buffer (23:00–24:00)
 
-Nothing new. Re-submit only if the final submission was rejected.
+Nothing new. Re-submit only if the final submission was rejected. In `/loop` mode, stop the loop.
 
 ## Running training
 
@@ -132,13 +135,14 @@ Nothing new. Re-submit only if the final submission was rejected.
 - Hugging Face Jobs: launch with the hf-cli skill; record the job id in the row; poll its status in a background until-loop every few minutes; fetch logs when it ends.
 - Always write the job id or log path in the row so a new session can find it.
 - ETA = smoke-test seconds per step × total steps.
+- Crash: mark the row `crashed`, `PushNotification` `#NNN crashed: <one-line reason>`, apply the Runbook.
 
 ## Submitting
 
 - Files are numbered `submissions/NNN_<name>.<ext>`; never overwrite or delete one.
 - Always first: `python "<skill dir>/check_submission.py" <sample_submission> <file>` must print `OK`.
-- CLI or API (Kaggle: `kaggle competitions submit -c <slug> -f <file> -m "#NNN <change>"`, scores via `kaggle competitions submissions -c <slug>`): submit yourself only after the user said so in chat in this session.
-- Web upload form: never click the site's submit button. `PushNotification` "upload submissions/NNN_... (val X)" and ask the user to paste the LB score back.
+- CLI or API (Kaggle: `kaggle competitions submit -c <slug> -f <file> -m "#NNN <change>"`, scores via `kaggle competitions submissions -c <slug>`): submit yourself only if `auto_submit: yes` in `brief.md`; otherwise use the web-upload flow below.
+- Web upload form: never click the site's submit button. `PushNotification` "upload submissions/NNN_... (val X)" and ask the user to paste the LB score back; fill the `submission` cell when they confirm the upload.
 - Update `subs used` in `experiments.md` after every submission.
 
 ## Runbook (apply without asking in autonomous mode)
@@ -191,10 +195,12 @@ data: TODO files and what each holds
 sample_submission: TODO path
 submission_method: TODO cli (exact command) | api | web upload
 submission_cap: TODO per day, or none
+auto_submit: TODO yes | no (the user's own chat answer; no for web upload)
 deadlines: TODO organizer deadlines if different from end
 rules_limits: TODO allowed models, external data allowed?, retrain on train+val allowed?
-compute: TODO GPU name + memory, how to reach it
-budget_cap: TODO max spend; max_parallel_jobs
+compute: TODO GPU name + memory, how to reach it, price per hour
+budget_cap: TODO max spend
+max_parallel_jobs: TODO
 hf_checkpoint_repo: TODO <user>/<name> (private)
 
 ## Choices
@@ -210,9 +216,10 @@ final_submission:
 ```markdown
 # Experiments
 subs used: 0 / <cap>
+cost so far: 0
 
-| # | time | change | hypothesis | status | job / log | val | LB | kept | submission |
-|---|---|---|---|---|---|---|---|---|---|
+| # | time | change | hypothesis | status | job / log | cost | val | LB | kept | submission |
+|---|---|---|---|---|---|---|---|---|---|---|
 ```
 
 Best = the kept row with the best val (metric direction from `brief.md`).
