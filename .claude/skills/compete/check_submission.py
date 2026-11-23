@@ -46,7 +46,8 @@ def check(sample_path, sub_path):
     bad_len = [i for i, r in enumerate(rows, 2) if len(r) != len(head)]
     if bad_len:
         problems.append(f"{len(bad_len)} rows with wrong field count, first at line {bad_len[0]}")
-    empty = [i for i, r in enumerate(rows, 2) if any(not v.strip() for v in r)]
+    s_empty = {j for r in s_rows for j, v in enumerate(r) if not v.strip()}
+    empty = [i for i, r in enumerate(rows, 2) if any(not v.strip() for j, v in enumerate(r) if j not in s_empty)]
     if empty:
         problems.append(f"{len(empty)} rows with empty values, first at line {empty[0]}")
     for j in range(1, len(head)):
@@ -83,6 +84,7 @@ def self_test():
         ("short row", num, "id,target\n1,0.1\n2\n3,0.4\n", False),
         ("empty file", num, "", False),
         ("good, blank line ignored", num, "id,target\n1,0.1\n\n2,0.9\n3,0.4\n", True),
+        ("good, empty where sample has empties", "id,mask\n1,\n2,1 3\n", "id,mask\n1,1 2\n2,\n", True),
     ]
     with tempfile.TemporaryDirectory() as d:
         for i, (name, sample, sub, ok) in enumerate(cases):

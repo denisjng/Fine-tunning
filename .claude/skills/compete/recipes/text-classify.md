@@ -27,7 +27,7 @@ Input is text; output is a label, several labels, a score (regression) or per-to
 2. lr 1e-5 / 2e-5 / 3e-5 and epochs 2–5.
 3. `-large` model.
 4. Class weights or decision-threshold tuning for F1-type metrics.
-5. 5-fold CV, average fold predictions (late, if time).
+5. 5-fold CV inside train (the val split stays frozen and is still the score), average fold predictions (late, if time).
 6. Pseudo-labels on test (only if the rules allow).
 7. Ensemble DeBERTa + ModernBERT.
 

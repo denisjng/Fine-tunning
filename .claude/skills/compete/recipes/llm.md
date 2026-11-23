@@ -13,12 +13,12 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 - QLoRA: 4-bit nf4, compute dtype bf16 (fp16 on T4/V100).
 - LoRA: r=16, alpha=32, dropout=0.05, target_modules="all-linear".
 - lr 2e-4, cosine schedule, warmup_ratio 0.03; epochs 2 (1 if >50k examples).
-- max_seq_length = 95th percentile of tokenized train lengths, capped at 2048.
+- max_length (TRL `SFTConfig`; older TRL: `max_seq_length`) = 95th percentile of tokenized train lengths, capped at 2048.
 - per-device batch 2–4 (16 GB: 1–2), gradient accumulation so the effective batch ≈ 16; gradient_checkpointing on; packing off for the baseline.
 
 ## Script outline
 - TRL `SFTTrainer` with the model's own chat template (`tokenizer.apply_chat_template`); train on the completion/assistant tokens only (check the current TRL docs for the flag name).
-- Inference: vLLM if installed, else batched HF `generate`; greedy decoding (temperature 0); max_new_tokens ≈ longest train answer × 1.2.
+- Inference: vLLM if installed, else batched HF `generate`; greedy decoding (`do_sample=False`; vLLM: temperature 0); max_new_tokens ≈ longest train answer × 1.2.
 - Score val generations with the competition metric. LLM-judge or fuzzy metrics: build a local scorer with `mlflow:build-a-scorer`.
 - Preference pairs given → DPO on top of the SFT model; verifiable reward given → GRPO. Always get the SFT baseline submitted first.
 
@@ -32,9 +32,9 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 7. DPO on top of SFT if preference pairs exist.
 
 ## Crashes
-- OOM → batch 1 + more accumulation → lower max_seq_length → smaller model.
+- OOM → batch 1 + more accumulation → lower max_length → smaller model.
 - Loss NaN → lr ÷3; bf16 instead of fp16 on Ampere or newer GPUs.
 - Repetitive or garbage output → wrong chat template, or EOS token missing from training targets.
 - "pad token" error → `tokenizer.pad_token = tokenizer.eos_token`.
 - bitsandbytes / CUDA error → `pip install -U bitsandbytes`; without an NVIDIA GPU skip 4-bit and use a smaller model.
-- Very slow → packing on, shorter max_seq_length, vLLM for inference.
+- Very slow → packing on, shorter max_length, vLLM for inference.
