@@ -30,6 +30,7 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 5. LoRA r 16 → 64.
 6. Decoding and post-processing: strip whitespace, parse JSON, regex out the final answer, few-shot prompt at inference.
 7. DPO on top of SFT if preference pairs exist.
+8. Levers used up → next ideas from the repo's `fine_tuning_challenge_playbook.md` §17 (experiment queue), one per loop.
 
 ## Crashes
 - OOM → batch 1 + more accumulation → lower max_length → smaller model.
