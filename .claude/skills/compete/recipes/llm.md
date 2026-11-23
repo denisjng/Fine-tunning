@@ -15,6 +15,7 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 - lr 2e-4, cosine schedule, warmup_ratio 0.03; epochs 2 (1 if >50k examples).
 - max_length (TRL `SFTConfig`; older TRL: `max_seq_length`) = 95th percentile of tokenized train lengths, capped at 2048.
 - per-device batch 2–4 (16 GB: 1–2), gradient accumulation so the effective batch ≈ 16; gradient_checkpointing on; packing off for the baseline.
+- Speed tips: Unsloth (often ~2× faster LoRA on one GPU) or Liger kernels if they install cleanly; vLLM for val/test generation; packing on once the baseline works.
 
 ## Script outline
 - TRL `SFTTrainer` with the model's own chat template (`tokenizer.apply_chat_template`); train on the completion/assistant tokens only (check the current TRL docs for the flag name).
@@ -27,10 +28,12 @@ The output is generated text: answers, summaries, code, JSON extraction, chat re
 2. lr 1e-4 / 2e-4 / 5e-4 and epochs 1–3.
 3. Bigger or newer base model.
 4. Data: dedupe, drop broken or very long outliers, add similar public data if allowed.
-5. LoRA r 16 → 64.
-6. Decoding and post-processing: strip whitespace, parse JSON, regex out the final answer, few-shot prompt at inference.
-7. DPO on top of SFT if preference pairs exist.
-8. Levers used up → next ideas from the repo's `fine_tuning_challenge_playbook.md` §17 (experiment queue), one per loop.
+5. One-line quick wins, one per loop: NEFTune (`neftune_noise_alpha=5`), DoRA (`use_dora=True`), LoRA r 16 → 64.
+6. Decoding and post-processing: strip whitespace, parse JSON, regex out the final answer; strict formats → constrained decoding (JSON schema / regex) or a validate-and-repair pass; reasoning with a single final answer → self-consistency (5 samples, majority vote) if inference time allows.
+7. Repair data: cluster val failures, add corrected examples for the biggest cluster. Rules allowing → rejection sampling: generate several answers per train prompt, keep the ones `metric.py` scores correct, retrain on them.
+8. DPO on top of SFT if preference pairs exist.
+9. Final block merge option (instead of averaging outputs): average the LoRA weights of 2–3 good runs of the same base (soup), or blend fine-tuned and base weights (WiSE-FT, 0.2–0.3 base); keep it only if val improves.
+10. Levers used up → next ideas from the repo's `fine_tuning_challenge_playbook.md` §17 (experiment queue), one per loop.
 
 ## Crashes
 - OOM → batch 1 + more accumulation → lower max_length → smaller model.
