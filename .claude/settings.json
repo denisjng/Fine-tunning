@@ -1,0 +1,24 @@
+{
+  "extraKnownMarketplaces": {
+    "knowledge-work-plugins": {
+      "source": { "source": "github", "repo": "anthropics/knowledge-work-plugins" }
+    },
+    "claude-plugins-official": {
+      "source": { "source": "github", "repo": "anthropics/claude-plugins-official" }
+    },
+    "huggingface-skills": {
+      "source": { "source": "github", "repo": "huggingface/skills" }
+    },
+    "ponytail": {
+      "source": { "source": "github", "repo": "DietrichGebert/ponytail" }
+    }
+  },
+  "enabledPlugins": {
+    "data@knowledge-work-plugins": true,
+    "design@knowledge-work-plugins": true,
+    "mlflow@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "hf-cli@huggingface-skills": true,
+    "ponytail@ponytail": true
+  }
+}
