@@ -39,7 +39,7 @@ Two principles run through every block: **the GPU is never idle** (the next run 
 Used when the prompt says "headless mode". The supervisor `<skill dir>/run_day.ps1` starts a fresh session every cycle, so context management is automatic: each run starts clean and rebuilds its picture from the files.
 
 - Never ask the user anything. Block 1's answers come from the launch file the prompt names (the user wrote it, so its `auto_submit` is the user's own answer). Anything else missing: take this skill's default and write it in `brief.md`.
-- Read only what you need: `brief.md`, the `## Handoff` note and last rows of `experiments.md`, and the chosen card. Keep the Handoff note current before you exit.
+- Read only what you need: `brief.md`, the `## Handoff`, `## Lessons` and `## Strategy log` sections and the last rows of `experiments.md`, and the chosen card. The lessons and strategy log are this day's memory across fresh sessions. Keep the Handoff note current before you exit.
 - Do steps until something must wait, then end your reply with the status line and, as the very last line, exactly one of:
   - `WAIT <seconds>`: time until the next check (60–1800). Use the ETA of the running job.
   - `BLOCKED <reason>`: nothing can proceed (rules or data unreachable, login missing). The supervisor retries in 10 minutes.
@@ -130,14 +130,15 @@ One loop = one row `NNN` in `experiments.md`. Each iteration:
 
 1. Read the user's chat messages since the last loop and follow their steering ("try X", "stop"). Every ~2 hours, if the competition has a forum or public notebooks (Kaggle-style): read the discussion and the top public notebooks (`WebSearch` and page reads; read only, never post). Note data bugs, metric quirks and strong public baselines under `## Data notes`; a strong public baseline or trick becomes a lever candidate.
 2. A row is `running` → check its job. Finished → keep the GPU busy: first launch the next loop (steps 3–4), then do steps 6–9 for the finished row while the new run trains. Crashed → see Running training, then start the next loop. Still running → do step 5 if not done yet, then pace the next wakeup near the ETA and stop.
-3. Pick ONE lever by scoring. List 3–5 candidates from the learning curve, the last error analysis, forum notes, the card's `## Levers` and the general list below. Score each as expected gain × chance it works ÷ GPU minutes (rough 1–5 guesses are fine), pick the highest, and write the score in the hypothesis. Apply the stuck rule and the loops-left rule.
+0. Strategy review: if `last_review` in `experiments.md` is empty or more than 2h30 ago (and at least one loop row is `done`), do the review below first. It is CPU work, so launch the next run before it if the GPU is free.
+3. Pick ONE lever by scoring. List 3–5 candidates from the strategy decision, the learning curve, the last error analysis, forum notes, the card's `## Levers` and the general list below. Score each as expected gain × chance it works ÷ GPU minutes, pick the highest, and write the score in the hypothesis. Base gain and chance on `## Lessons`: a category that already gained gets a higher chance; one that failed twice gets chance 1 unless the error analysis points to it. Rough 1–5 guesses are fine for untried categories. Apply the stuck rule and the loops-left rule.
 4. Add the row: time, change, hypothesis ("change X because Y, expect val up"), status `running`, job/log. Copy the best experiment's code and config to `exp/NNN/` (no checkpoints, logs or prediction files), set the new run name, and make the one change there. Smoke test, then full run in the background. Before launching: if the ETA passes stop-loops, cut data, epochs or model size; if it still does not fit, do not start it: set the row's status to `skipped` and pick a cheaper lever. If `cost so far` + the estimates of all `running` rows + this run's estimate (GPU price per hour × ETA) exceeds `budget_cap`, do not start it: set the row's status to `skipped` and apply the Runbook's budget row. Write the estimate in the row's `cost` cell. If no lever fits before stop-loops, add no row and pace the next wakeup to stop-loops.
 5. While it trains (CPU work only):
    - Error analysis of the current best on val: worst 20 mistakes, per-class or per-segment scores, plots with `data:create-viz`, and likely wrong labels (train rows the model gets confidently wrong out-of-fold). Write 1–2 "next lever" ideas under the table.
    - Post-processing on the current best's saved val predictions, tuned on val: decision thresholds for F1-type metrics, clipping and rounding for numeric targets, answer-format normalization for text, and for log-loss or Brier metrics temperature scaling (or probability clipping) fitted on val. A gain becomes its own row with change `postproc:<what>` (no GPU, no training).
 6. Read `VAL_SCORE`. Gain under ~1% relative or a small val set → check with `data:statistical-analysis` (bootstrap over val examples) whether it is real. Status `done` (cost is added per Running training). Learning curve from the `EPOCH_SCORE` lines: still rising at the last epoch → "more epochs" becomes the top lever candidate; peaked early and then fell → "lower learning rate or more regularization".
 7. Predict test → `submissions/NNN_<short-name>.<ext>`, check, submit. If `submission_cap` is set: in Block 4 do not submit once `subs used` ≥ cap − 2 (those 2 are for Blocks 5–6); once `subs used` ≥ cap − 4, submit only when val beat the best. Do not wait for the platform to score it: fill the `submission` cell, move on, and record LB in a later iteration once the score appears.
-8. Val beat the best (and the gain is real, if checked in step 6) → `kept: yes`, push the checkpoint to the private `hf_checkpoint_repo` (hf-cli skill; skip if it is `none`). Else `kept: no`; the best stays.
+8. Update `## Lessons` in `experiments.md`: one line per lever category (learning rate, epochs, base model, data cleaning, augmentation, post-processing, …) with tries, kept count and best gain, e.g. `base model: 2 tries, 1 kept, +4.1%`. Add a short "why" when it is clear (e.g. "augmentation hurts: images are orientation-sensitive"). Then: val beat the best (and the gain is real, if checked in step 6) → `kept: yes`, push the checkpoint to the private `hf_checkpoint_repo` (hf-cli skill; skip if it is `none`). Else `kept: no`; the best stays.
 9. `PushNotification`: `#NNN <change>: val <x> (best <y>), LB <z>`.
 
 General lever list (best payoff first; the first 3 loops take only items 1–4):
@@ -149,6 +150,17 @@ General lever list (best payoff first; the first 3 loops take only items 1–4):
 6. Inference tricks: TTA, decoding settings, constrained output.
 7. Ensembling and seed averaging: only in block 5.
 8. Situational: extra label columns → an auxiliary target (multi-task head); noisy or mixed-difficulty data → easy-to-hard curriculum; leak checks (ID order, file order, timestamps) only if the rules explicitly allow using them, since many competitions disqualify for it.
+
+Strategy review (every 2h30 of the day, step 0 above; about 10 minutes, no GPU):
+1. Trend: best val per hour since the baseline, and the last 3 rows' gains. A plateau means under ~0.5% relative gain in the last 2h30.
+2. Read `## Lessons`, forum notes and the error-analysis notes together. Ask: is the remaining error mostly data, model capacity, format or inference?
+3. Decide one of three and write it, with the reason, as a dated line under `## Strategy log`:
+   - **continue**: the trend is still rising; keep the lever order.
+   - **refocus**: re-rank the lever categories using the lessons (stop the ones that failed twice; push the one with the best gain per GPU minute).
+   - **pivot** (plateau and at least 4h before stop-loops): change the approach itself. Examples: a different model family or recipe card, reframing the task (classification as regression or ranking, generation as extraction), a prompt-only larger model, or an ensemble-first plan. The pivot's first run is the next loop and is compared against the current best like any lever. A pivot never touches the frozen val split or `metric.py`.
+4. Set `last_review` to now.
+
+Automatic hyperparameter search: when one training run takes under ~2 minutes (tabular, small encoders, small vision models), one loop may be an Optuna search instead of a single change (change `hpo:optuna`). Time-box it to 30 minutes and 20–40 trials, search the card's hyperparameters around the current best, score with `metric.py` on the frozen val split or CV folds, and keep the best trial's config as the row's result. Never run it on LLM fine-tuning or other runs over 2 minutes; use the 3-learning-rate mini-sweep there.
 
 Data-size probe, once, around loop 3: train the best config on 25%, 50% and 100% of train in one job (one row, change `probe:data-size`). Still climbing at 100% → data levers (item 4) are worth their time; flat → skip them and focus on model and inference.
 
@@ -278,9 +290,16 @@ final_submission:
 # Experiments
 subs used: 0 / <cap>
 cost so far: 0
+last_review:
 
 | # | time | change | hypothesis | status | job / log | cost | val | LB | kept | submission |
 |---|---|---|---|---|---|---|---|---|---|---|
+
+## Lessons
+
+## Strategy log
+
+## Handoff
 ```
 
 Best = the kept row with the best val (metric direction from `brief.md`).
