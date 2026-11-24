@@ -24,7 +24,7 @@ Data is rows and columns (CSV/parquet) of numbers and categories; target is a cl
 2. learning_rate 0.02 with more trees.
 3. Feature engineering: ratios, date parts, group aggregates, count encoding.
 4. Class weights or threshold tuning for the metric.
-5. Tune num_leaves, min_child_samples, learning_rate, feature_fraction and lambda_l2 with an Optuna search (SKILL.md "Automatic hyperparameter search", 30-minute box).
+5. Tune num_leaves, min_child_samples, learning_rate, feature_fraction and lambda_l2 with an Optuna search (SKILL.md "Automatic hyperparameter search", run by a helper in parallel).
 6. CatBoost / XGBoost and average with LightGBM.
 7. Average 3 seeds.
 

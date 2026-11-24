@@ -49,9 +49,9 @@ while ((Get-Date) -lt $End -and -not (Test-Path (Join-Path $Comp 'STOP'))) {
     $out = Join-Path $Logs ('cycle-{0:D3}.log' -f $n)
     $p = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c claude -p $PermissionArgs" -WorkingDirectory $Repo `
         -RedirectStandardInput $PromptFile -RedirectStandardOutput $out -RedirectStandardError "$out.err" -NoNewWindow -PassThru
-    if (-not $p.WaitForExit(45 * 60 * 1000)) {
+    if (-not $p.WaitForExit(90 * 60 * 1000)) {
         & taskkill /T /F /PID $p.Id | Out-Null
-        Add-Content $out 'TIMEOUT after 45 min'
+        Add-Content $out 'TIMEOUT after 90 min'
     }
     $last = Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_.Trim() } | Select-Object -Last 1
     if ($last -match '^\s*DONE') { Write-Sup "cycle $n -> DONE"; break }
