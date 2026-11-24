@@ -4,7 +4,7 @@ The `/compete` Claude Code skill runs a one-day fine-tuning competition for you.
 - reads the rules and adapts the plan;
 - analyses the data;
 - trains a baseline and submits it;
-- improves the model in loops, researching techniques and changing strategy as results come in;
+- improves the model in loops, researching techniques and changing strategy as results come in, with parallel helper agents (each using the matching Claude skill) for research, analysis, code prep, code review and tracking;
 - makes the final submission.
 
 It handles any modality (LLM, text, vision, audio, tabular).
@@ -38,6 +38,7 @@ It handles any modality (LLM, text, vision, audio, tabular).
 |---|---|
 | See progress | `<competition folder>\logs\supervisor.log` |
 | See scores and experiments | `<competition folder>\experiments.md` |
+| See the score-over-time chart | `<competition folder>\agents\progress.png` |
 | Read messages for you | `<competition folder>\logs\notes.md` |
 | Stop everything | Create an empty file `<competition folder>\STOP` |
 
