@@ -1,5 +1,5 @@
 # Runs the competition day hands-free: one fresh headless Claude Code run per cycle until DONE, end time or a STOP file.
-# Start once before 09:00:  powershell -ExecutionPolicy Bypass -File .claude\skills\compete\run_day.ps1
+# Normally started by /compete's morning intake. By hand: powershell -ExecutionPolicy Bypass -File .claude\skills\compete\run_day.ps1
 param([string]$Launch)
 
 # YOU set this line. Headless runs cannot ask for permission, so without a mode every tool call is refused.
@@ -14,6 +14,7 @@ if (-not $Launch) { $Launch = Join-Path $Repo 'launch.md' }
 $Launch = (Resolve-Path $Launch).Path
 $text = Get-Content $Launch -Raw
 if ($text -match '(?m):\s*TODO') { throw "Fill every TODO in $Launch first." }
+if ($text -match '(?m):\s*ASK\s*$') { throw "Morning fields still say ASK: run /compete in Claude first; it fills them and starts this script." }
 if (-not $PermissionArgs) { throw 'Set $PermissionArgs at the top of run_day.ps1 first.' }
 if (-not (Get-Command claude -ErrorAction SilentlyContinue)) { throw 'Claude Code CLI not found: install it and log in first.' }
 

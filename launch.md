@@ -1,15 +1,21 @@
-# Launch file for the hands-free day (run_day.ps1)
-# Fill every field that says TODO, then start the script. Claude reads this instead of asking you.
+# Launch file for the hands-free day
 
-competition: TODO competition URL, or name and Kaggle slug
+## Fill now (before the day)
+Replace every TODO.
+
 competition_folder: TODO e.g. C:\Users\popes\Desktop\Fine-tunning\comp
-start: 2026-11-28 09:00
-end: 2026-11-29 00:00
 budget_cap: TODO max GPU spend, e.g. 40 USD
 max_parallel_jobs: 1
-auto_submit: TODO yes or no. yes = Claude may submit by CLI or API after every stage. Web-upload competitions cannot be submitted unattended.
 hf_checkpoint_repo: TODO <your-hf-user>/<name> (private), or none
 notes: none
 
-## Rules text (optional)
-Paste the competition rules here if they are not reachable from the URL.
+## Filled in the morning by /compete
+Leave these as ASK. `/compete` asks you for the competition information, fills these in, then starts the autopilot.
+
+competition: ASK
+start: ASK
+end: ASK
+auto_submit: ASK
+
+## Rules text
+Filled in the morning from what you paste or link.

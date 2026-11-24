@@ -1,7 +1,7 @@
 # Fine-tuning competition autopilot
 
-The `/compete` Claude Code skill runs a one-day fine-tuning competition for you, start to finish:
-- reads the rules;
+The `/compete` Claude Code skill runs a one-day fine-tuning competition for you. In the morning you give it the competition information, and it does the rest:
+- reads the rules and adapts the plan;
 - analyses the data;
 - trains a baseline and submits it;
 - improves the model in loops, researching techniques and changing strategy as results come in;
@@ -9,7 +9,7 @@ The `/compete` Claude Code skill runs a one-day fine-tuning competition for you,
 
 It handles any modality (LLM, text, vision, audio, tabular).
 
-## Before launch (once, ~15 min)
+## Before the day (once, ~15 min)
 
 1. **Install the Claude Code CLI**, then run `claude` once and log in:
    ```powershell
@@ -21,19 +21,16 @@ It handles any modality (LLM, text, vision, audio, tabular).
    hf auth login
    ```
    Your account needs GPU credits.
-3. **Kaggle competitions only.** Put `kaggle.json` in `C:\Users\<you>\.kaggle\`, and accept the competition rules on the website.
+3. **Kaggle competitions only.** Put `kaggle.json` in `C:\Users\<you>\.kaggle\`. Accept the competition rules on the website once they are published.
 4. **Permission mode.** In `.claude\skills\compete\run_day.ps1`, set the `$PermissionArgs` line. It decides what Claude may do without asking. The options and their risks are written above it.
-5. **Fill `launch.md`.** Every `TODO`: competition URL, competition folder, budget, `auto_submit`, Hugging Face checkpoint repo. Set `auto_submit: no` if the platform only takes web uploads.
+5. **`launch.md`:** fill the "Fill now" part (folder, budget, checkpoint repo). Leave the `ASK` fields alone.
 
-## Launch
+## In the morning
 
-From this folder, any time before the start time (it waits until `start` in `launch.md`):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .claude\skills\compete\run_day.ps1
-```
-
-Keep the window open and the laptop on power. Then you can walk away.
+1. Open Claude in this folder and type `/compete`.
+2. Paste everything you received for the competition: link, rules, data, deadlines, submission method.
+3. Answer its one follow-up message. Most questions come with a default; the only one without is whether it may submit on its own.
+4. It summarises the plan and starts the autopilot in a new window. Keep that window open and the laptop on power, then walk away.
 
 ## While it runs (optional)
 
@@ -44,14 +41,8 @@ Keep the window open and the laptop on power. Then you can walk away.
 | Read messages for you | `<competition folder>\logs\notes.md` |
 | Stop everything | Create an empty file `<competition folder>\STOP` |
 
-Default times: first submission 12:30, loops stop 20:00, final pick 22:00, final submission 23:00. They shift with `end` in `launch.md`.
+Default times: first submission 12:30, loops stop 20:00, final pick 22:00, final submission 23:00. They shift with the organizer's deadline.
 
-## If the script fails
+## If the autopilot fails
 
-Open Claude in this folder and type `/loop /compete`. In the first message, give:
-- the competition URL;
-- the folder;
-- your budget;
-- "yes, you may submit on your own" (if you want that).
-
-It resumes from the files at any point.
+Open Claude in this folder and type `/loop /compete`. It resumes from the files and runs in that chat instead.
