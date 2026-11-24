@@ -4,7 +4,7 @@ param([string]$Launch)
 
 # YOU set this line. Headless runs cannot ask for permission, so without a mode every tool call is refused.
 # Pick one (see `claude --help`), and accept its risk yourself:
-#   '--permission-mode acceptEdits --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Skill"'  (narrower)
+#   '--permission-mode acceptEdits --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Skill,Agent"'  (narrower; Agent enables the parallel helpers)
 #   '--dangerously-skip-permissions'  (allows everything; only on a machine with nothing else to protect)
 $PermissionArgs = ''
 
