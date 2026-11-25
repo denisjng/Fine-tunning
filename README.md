@@ -1,49 +1,63 @@
-# Fine-tuning competition autopilot
+# Autopilote pour le hackathon de fine-tuning
 
-The `/compete` Claude Code skill runs a one-day fine-tuning competition for you. In the morning you give it the competition information, and it does the rest:
-- reads the rules and adapts the plan;
-- analyses the data;
-- trains a baseline and submits it;
-- improves the model in loops, researching techniques and changing strategy as results come in, with parallel helper agents (each using the matching Claude skill) for research, analysis, code prep, code review and tracking;
-- makes the final submission.
+Le skill Claude Code `/compete` mène le hackathon pour toi. Après le kick-off, tu lui donnes les infos du sujet, et il fait le reste :
+- il lit les règles et adapte le plan ;
+- il analyse les données ;
+- il entraîne une baseline sur Hugging Face et la soumet ;
+- il améliore le modèle en boucles, avec des agents en parallèle pour la recherche, l'analyse, le code et la revue de code ;
+- il fait la soumission finale et prépare le dossier pour la vérification du top 3.
 
-It handles any modality (LLM, text, vision, audio, tabular).
+## Avant samedi (une fois, ~20 min)
 
-## Before the day (once, ~15 min)
+1. **Compte Hugging Face avec ton adresse Ynov**, dans l'organisation de l'école : https://huggingface.co/join/ynov. **Envoie ton identifiant HF** à l'organisateur, par Teams ou en réponse au mail.
+2. **Pose deux questions à l'organisateur :**
+   - Un agent IA qui entraîne et soumet seul est-il autorisé, ou seulement l'aide pour coder ?
+   - Combien de crédits GPU, et quels GPU sont permis ?
 
-1. **Install the Claude Code CLI**, then run `claude` once and log in:
+   Sans un oui clair à la première, utilise le mode guidé (section « Mode guidé » plus bas).
+3. **Installe Claude Code (CLI)**, puis lance `claude` une fois **dans ce dossier**. Accepte les plugins du projet, puis vérifie avec `/plugin` que `data`, `mlflow`, `hf-cli`, `superpowers` et `ponytail` sont bien installés.
    ```powershell
    irm https://claude.ai/install.ps1 | iex
    ```
-2. **Hugging Face login.** Type the token yourself:
+4. **Connexion Hugging Face avec le compte Ynov.** Tape le token toi-même :
    ```powershell
    pip install -U huggingface_hub
    hf auth login
    ```
-   Your account needs GPU credits.
-3. **Kaggle competitions only.** Put `kaggle.json` in `C:\Users\<you>\.kaggle\`. Accept the competition rules on the website once they are published.
-4. **Permission mode.** In `.claude\skills\compete\run_day.ps1`, set the `$PermissionArgs` line. It decides what Claude may do without asking. The options and their risks are written above it.
-5. **`launch.md`:** fill the "Fill now" part (folder, budget, checkpoint repo). Leave the `ASK` fields alone.
+5. **Outil local pour les helpers :**
+   ```powershell
+   pip install optuna==5.1.0
+   ```
+6. **Mode de permission.** Dans `.claude\skills\compete\run_day.ps1`, règle la ligne `$PermissionArgs`. Elle décide ce que Claude peut faire sans te demander ; les options et leurs risques sont écrits juste au-dessus.
+7. **`launch.md` :** remplis la partie « Fill now » (dossier, nom de l'org HF, repo de checkpoints privé **dans ton espace à toi**, crédits). Laisse les champs `ASK`.
 
-## In the morning
+## Samedi matin
 
-1. Open Claude in this folder and type `/compete`.
-2. Paste everything you received for the competition: link, rules, data, deadlines, submission method.
-3. Answer its one follow-up message. Most questions come with a default; the only one without is whether it may submit on its own.
-4. It summarises the plan and starts the autopilot in a new window. Keep that window open and the laptop on power, then walk away.
+1. **9 h :** suis le kick-off sur Teams et note le sujet, les règles, la métrique, comment soumettre et la deadline.
+2. Ouvre Claude dans ce dossier et tape `/compete`.
+3. Colle tout : le lien, les règles, tes notes et les messages Teams.
+4. Réponds à son unique message de questions, dont « je peux soumettre seul ? ».
+5. Il résume le plan et lance l'autopilote dans une nouvelle fenêtre. Laisse-la ouverte, branche le chargeur et **ne ferme pas le capot**.
 
-## While it runs (optional)
+**Sur place à Nanterre :** l'autopilote se met en pause pendant le trajet du retour à 16 h, puis reprend quand tu rouvres le PC. Les entraînements continuent sur Hugging Face. Pour zéro pause, reste en ligne depuis chez toi.
 
-| To… | Look at / do |
+## Pendant la journée (facultatif)
+
+| Pour… | Regarde / fais |
 |---|---|
-| See progress | `<competition folder>\logs\supervisor.log` |
-| See scores and experiments | `<competition folder>\experiments.md` |
-| See the score-over-time chart | `<competition folder>\agents\progress.png` |
-| Read messages for you | `<competition folder>\logs\notes.md` |
-| Stop everything | Create an empty file `<competition folder>\STOP` |
+| Suivre l'avancement | `<dossier>\logs\supervisor.log` |
+| Voir les scores et les expériences | `<dossier>\experiments.md` |
+| Voir la courbe du score | `<dossier>\agents\progress.png` |
+| Lire les messages pour toi | `<dossier>\logs\notes.md` |
+| Tout arrêter | Crée un fichier vide `<dossier>\STOP` |
 
-Default times: first submission 12:30, loops stop 20:00, final pick 22:00, final submission 23:00. They shift with the organizer's deadline.
+Repères par défaut : première soumission vers 12 h 30, boucles jusqu'à 20 h, choix final à 22 h, dernière soumission avant minuit.
 
-## If the autopilot fails
+## Mode guidé, ou si l'autopilote plante
 
-Open Claude in this folder and type `/loop /compete`. It resumes from the files and runs in that chat instead.
+1. Crée `<dossier>\STOP` et attends « supervisor finished » dans `supervisor.log` : deux pilotes en même temps se marcheraient dessus.
+2. Ouvre Claude dans ce dossier et tape `/loop /compete`. Il reprend depuis les fichiers.
+
+## Après minuit
+
+Le dossier de reproductibilité est poussé dans `<ton-compte>/<sujet>-final`, un repo privé. Si tu es dans le top 3, c'est ce repo que tu partages avec les organisateurs pour la vérification des 29 et 30 novembre.

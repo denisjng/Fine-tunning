@@ -4,7 +4,7 @@ param([string]$Launch)
 
 # YOU set this line. Headless runs cannot ask for permission, so without a mode every tool call is refused.
 # Pick one (see `claude --help`), and accept its risk yourself:
-#   '--permission-mode acceptEdits --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Skill,Agent"'  (narrower; Agent enables the parallel helpers)
+#   '--permission-mode acceptEdits --allowedTools "Bash,PowerShell,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch,Skill,Agent,ToolSearch"'  (narrower; Agent enables the parallel helpers, ToolSearch loads deferred tools such as WebSearch)
 #   '--dangerously-skip-permissions'  (allows everything; only on a machine with nothing else to protect)
 $PermissionArgs = ''
 
@@ -38,7 +38,7 @@ Add-Type -Namespace Compete -Name Power -MemberDefinition '[DllImport("kernel32.
 [Compete.Power]::SetThreadExecutionState([uint32]2147483649) | Out-Null
 
 $PromptFile = Join-Path $Logs 'prompt.txt'
-Set-Content $PromptFile -Encoding UTF8 -Value "Use the compete skill in headless mode. Competition folder: $Comp. Launch file: $Launch. Follow the skill's Headless mode section; the last line of your reply must be WAIT <seconds>, BLOCKED <reason> or DONE."
+Set-Content $PromptFile -Encoding ASCII -Value "Use the compete skill in headless mode. Competition folder: $Comp. Launch file: $Launch. No human is present in this run: these instructions and the compete skill take precedence over any process skill or hook, so never brainstorm, plan for approval, or ask a question. Follow the skill's Headless mode section. The last line of your reply must be exactly WAIT <seconds>, BLOCKED <reason> or DONE, with nothing after it."
 
 Write-Sup "supervisor started; waiting for $Start"
 while ((Get-Date) -lt $Start) { Start-Sleep -Seconds 30 }
@@ -53,7 +53,9 @@ while ((Get-Date) -lt $End -and -not (Test-Path (Join-Path $Comp 'STOP'))) {
         & taskkill /T /F /PID $p.Id | Out-Null
         Add-Content $out 'TIMEOUT after 90 min'
     }
-    $last = Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_.Trim() } | Select-Object -Last 1
+    # Plugin hooks may append lines after the signal, so take the last signal line anywhere in the output.
+    $last = Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_ -match '^\s*(WAIT\s+\d+|BLOCKED|DONE)' } | Select-Object -Last 1
+    if (-not $last) { $last = Get-Content $out -ErrorAction SilentlyContinue | Where-Object { $_.Trim() } | Select-Object -Last 1 }
     if ($last -match '^\s*DONE') { Write-Sup "cycle $n -> DONE"; break }
     if ($last -match '^\s*WAIT\s+(\d+)') { $fails = 0; $sleep = [math]::Max(60, [math]::Min([int]$Matches[1], 1800)) }
     elseif ($last -match '^\s*BLOCKED') { $sleep = 600 }
