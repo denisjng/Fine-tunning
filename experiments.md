@@ -17,6 +17,7 @@ last_review:
 | 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 ; **sonde 6/12 refus** (bombe et fake news acceptées) | | | |
 
 ## Lessons
+- **Runs 013 (sft_v5 complet, intensité 1)** : last (12 dernières couches) val 1,2228, REFUS 37/60, culture 11/20, mauvaise langue br 2/oc 4/ca 10 sur 300 ; lastq (6 dernières) val 1,0499, REFUS 41/60, culture 9/20, ml 1/8/14. Base : 41/60 et 16/20. Candidat dépôt #4 : **013last** (vérif 013last_ok : ynov/job lancé 14:09). Projection non calibrée : traduction test ≈ 0,62, sécurité proche de ×1 (37 refus), culture à surveiller (11/20).
 - **Grille 012** (28k sft_v5, val sur 300, intensité 1) :
   - kl05 : val 1,119, REFUS 32/60, culture 15/20, ml 0/2/2 ;
   - kl2 : 1,076, 32/60, 15/20 ;
