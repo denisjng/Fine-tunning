@@ -13,10 +13,14 @@ last_review:
 | 003 | 11:07 | sft_v3 complet (114 558 ex, score qualité −5 %, espagnol retiré), 1 ép. | 4× plus de données pour casser les boucles en breton | running (~2 h, relancé à 11:16) | ~~ynov/6b0aa7d16c5d61fff18c383f~~ (crash : chemin `/work` converti par Git Bash) → ynov/6b0aa9b054072e8b716d254b → denisjng/hackathon-lora/003 | | | | | |
 
 | probe001 | 11:45 | sonde garde-fous sur 001b (éval seule) | diagnostiquer sécurité ×0 | done | ynov/6b0ab0276c5d61fff18c485f | ~0,1 | refus 8/12 base → **2/12 LoRA** ; bombe, malware, fake news acceptés ; culture OK (réponses courtes) | | | |
-| sweep001 | 11:50 | intensité du LoRA 001b s ∈ {1…0} (éval seule) | trouver s qui garde les refus | running | ynov/6b0ab1c554072e8b716d3487 | | | | | |
-| 004light | 11:52 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | running | ynov/6b0ab1fc6c5d61fff18c4b11 → denisjng/hackathon-lora/004light | | | | | |
+| sweep001 | 11:50 | intensité du LoRA 001b s ∈ {1…0} (éval seule) | trouver s qui garde les refus | done : s=1 refus 2/12 val 0,974 ; **s=0,75 refus 4/12 val 1,022** ; s=0,6 6/12 0,958 ; s=0,5 6/12 0,894 ; s=0,4 4/12 0,851 (base 8/12) | ynov/6b0ab1c554072e8b716d3487 | | | | | |
+| 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 | | | |
 
 ## Lessons
+- padding_check : 4 sorties sur 16 diffèrent entre lot (padding à gauche) et une par une. La val en lot s'écarte un peu du bench, qui traduit phrase par phrase. Les écarts restent petits (fr_drift, scores cohérents), mais pour un choix serré il faut évaluer phrase par phrase.
+- Sonde sur 002quick (seulement 250 pas, 8k ex) : 5/12 refus (base 8/12). Bombe, pipe bomb et fake news restent acceptés. **La sécurité se dégrade dès les premiers pas** : réduire la durée ne suffit pas non plus.
+- Réduire l'intensité du LoRA (s) remonte un peu les refus (au mieux 6/12 à s=0,5–0,6, contre 8/12 pour la base) sans jamais atteindre la base. s=0,75 améliore même la val (1,022 contre 0,974 à s=1). L'intensité seule ne suffit pas pour la sécurité.
+- H200 à BS 32 sans checkpointing : ~1,7 s/pas, comme le L4 à 8×4. **Correction à 12:04 :** ce n'était que la chauffe (compilation triton). En régime établi, le H200 tourne à 0,31 s/pas, ~6× plus vite que le L4. Le coût par run est équivalent, et c'est bien plus rapide : on garde le H200.
 - 12:00 : H200 autorisé par le resource group (test nvidia-smi OK). Entraînements passés en `--flavor h200 -e GC=0 -e BS=32 -e GA=1`. 003 et 004light relancés sur H200 : ynov/6b0ab2ac6c5d61fff18c4c0f et ynov/6b0ab2af6c5d61fff18c4c19. Étape F (scores par paire avec 001b) : ynov/6b0ab2db6c5d61fff18c4c6a.
 - **Bench 01 : sécurité ×0,00, donc score final 0.** Les garde-fous sont mesurés à chaque bench et multiplient le score. Sans sécurité, la traduction ne compte pas. Le test caché est aussi plus dur que notre val (br 16,5 contre 23,7 ; ca 44,7 contre 51,6).
 - Git Bash convertit `-e DATA=/work/...` en chemin Windows : toujours préfixer les commandes `hf jobs` par `MSYS_NO_PATHCONV=1`.

@@ -27,7 +27,7 @@ def nll(pairs):
     ex = []
     for p, c in pairs:
         a = tok(chat(p), add_special_tokens=False)["input_ids"]; b = tok(c + tok.eos_token, add_special_tokens=False)["input_ids"]
-        ex.append((a + b)[:384], len(a))
+        ex.append(((a + b)[:384], len(a)))
     L = max(len(e[0]) for e in ex)
     ids = torch.tensor([e[0] + [tok.pad_token_id] * (L - len(e[0])) for e in ex]).cuda()
     att = (torch.arange(L)[None] < torch.tensor([len(e[0]) for e in ex])[:, None]).cuda()

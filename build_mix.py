@@ -1,4 +1,5 @@
 """data/derived/train_v2_scored.jsonl (quality_score.py) -> data/derived/sft_v3.jsonl : mélange dosé, au gabarit exact du bench (seed 42).
+F_DROP=0.15 : sft_v4 = v3 moins les paires les plus mal notées par le modèle (étape F, data/derived/pair_scores.jsonl).
 V2=1 : reproduit sft_v2.jsonl (run 001b, 1er dépôt) = même mélange, sans filtre de score ni filtre espagnol.
 
 Chaque ligne : {"prompt": <message utilisateur>, "completion": <traduction>, "lang", "dir", "source"}.
@@ -33,9 +34,27 @@ rng = random.Random(42)
 V2 = os.environ.get("V2") == "1"
 scored = [json.loads(l) for l in open("data/derived/train_v2.jsonl" if V2 else "data/derived/train_v2_scored.jsonl", encoding="utf-8")]
 cut = {lg: -1 for lg in LANG} if V2 else {lg: sorted(r["q"] for r in scored if r["lang"] == lg and r["source"] not in TRUSTED)[int(BOTTOM * sum(1 for r in scored if r["lang"] == lg and r["source"] not in TRUSTED))] for lg in LANG}
+F_DROP = float(os.environ.get("F_DROP", 0))   # V4 : part des paires les plus mal notées par le modèle (étape F) retirée, par source
+bad_f = set()
+if F_DROP:
+    ps = [json.loads(l) for l in open("data/derived/pair_scores.jsonl", encoding="utf-8")]
+    pct = {}
+    for d in ("nll_fx", "nll_xf"):   # rang percentile par langue : comparable entre br, oc, ca et entre sens
+        for lg in LANG:
+            idx = sorted((i for i, p in enumerate(ps) if p["lang"] == lg), key=lambda i: ps[i][d])
+            for rank, i in enumerate(idx): pct[(i, d)] = rank / max(1, len(idx) - 1)
+    # dual conditional cross-entropy : perte haute dans les deux sens, ou très différente entre les sens = désaligné
+    dual = [(pct[(i, "nll_fx")] + pct[(i, "nll_xf")]) / 2 + abs(pct[(i, "nll_fx")] - pct[(i, "nll_xf")]) for i in range(len(ps))]
+    per_src = collections.defaultdict(list)
+    for i, p in enumerate(ps):
+        if p["source"] not in TRUSTED: per_src[p["source"]].append(i)
+    for idx in per_src.values():
+        idx.sort(key=lambda i: -dual[i])
+        bad_f |= {(ps[i]["lang"], ps[i]["fr"], ps[i]["x"]) for i in idx[:int(F_DROP * len(idx))]}
 by, dropped = collections.defaultdict(list), collections.Counter()
 for r in scored:
     if not V2 and r["source"] not in TRUSTED and r["q"] < cut[r["lang"]]: dropped["score_bas"] += 1; continue
+    if (r["lang"], r["fr"], r["x"]) in bad_f: dropped["modele_F"] += 1; continue
     if not V2 and ("¿" in r["x"] or "¡" in r["x"]): dropped["espagnol"] += 1; continue   # ponctuation absente du catalan et de l'occitan
     by[r["source"]].append(r)
 print("seuils", {k: round(v, 3) for k, v in cut.items()}, "retirés", dict(dropped))
@@ -52,7 +71,7 @@ for r in rows:
         out.append({"prompt": x_to_fr(r["lang"], r["x"]), "completion": r["fr"], "lang": r["lang"], "dir": "x2fr", "source": r["source"]})
     else:
         out.append({"prompt": fr_to_x(r["lang"], r["fr"]), "completion": r["x"], "lang": r["lang"], "dir": "fr2x", "source": r["source"]})
-with open(os.environ.get("OUT", "data/derived/sft_v2.jsonl" if V2 else "data/derived/sft_v3.jsonl"), "w", encoding="utf-8") as f:
+with open(os.environ.get("OUT", "data/derived/sft_v2.jsonl" if V2 else "data/derived/sft_v4.jsonl" if F_DROP else "data/derived/sft_v3.jsonl"), "w", encoding="utf-8") as f:
     f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in out)
 
 n = collections.Counter(r["lang"] for r in out)
