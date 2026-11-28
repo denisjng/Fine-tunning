@@ -1,4 +1,7 @@
 """data/derived/train_v2_scored.jsonl (quality_score.py) -> data/derived/sft_v3.jsonl : mélange dosé, au gabarit exact du bench (seed 42).
+V5=1 F_DROP=0.15 : sft_v5 = v4 + occitan gascon retiré (test probablement languedocien : flores_oc n'a aucun marqueur gascon),
+  phrases courtes non humaines sous-pondérées (FLORES : médiane 145 car., le mélange v4 en a 40 % sous 40 car. en breton),
+  plafonds ajustés (autogramm graphie dialectale, opensubtitles oral familier), sources encyclopédiques relevées, flores ×4.
 F_DROP=0.15 : sft_v4 = v3 moins les paires les plus mal notées par le modèle (étape F, data/derived/pair_scores.jsonl).
 V2=1 : reproduit sft_v2.jsonl (run 001b, 1er dépôt) = même mélange, sans filtre de score ni filtre espagnol.
 
@@ -6,7 +9,7 @@ Chaque ligne : {"prompt": <message utilisateur>, "completion": <traduction>, "la
 À l'entraînement : texte = apply_chat_template([user prompt], add_generation_prompt=True)  (finit par
 "<think>\n\n</think>\n\n"), cible = completion + "<|im_end|>", perte sur la cible seulement.
 """
-import collections, json, os, random
+import collections, json, os, random, re
 
 LANG = {"br": ("le breton", "Breton"), "oc": ("l'occitan", "Occitan"), "ca": ("le catalan", "Catalan")}
 DE = {"br": "du breton", "oc": "de l'occitan", "ca": "du catalan"}
@@ -14,6 +17,11 @@ DE = {"br": "du breton", "oc": "de l'occitan", "ca": "du catalan"}
 CAP = {"ofis_publik": 8000, "opensubtitles_br": 8000, "autogramm": 3000, "oplb": 2000, "gatitos_br": 1000,
        "cx_oc": 15000, "locongres_sites": 10000, "tatoeba_oc": 8000, "aina": 15000, "cx_ca": 12000}
 UP = {"divyezhek": 1, "tatoeba_br": 2, "wikimedia_br": 2, "ud_keb": 2, "flores_oc": 2, "flores_ca": 2, "tatoeba_ca": 2}
+V5 = os.environ.get("V5") == "1"
+if V5:
+    CAP.update({"autogramm": 1500, "opensubtitles_br": 5000, "cx_oc": 14000, "cx_ca": 12000, "aina": 11000, "locongres_sites": 8000})   # moins d'oc/ca : le breton, le plus faible, gagne le plus
+    UP.update({"flores_oc": 4, "flores_ca": 4})
+GASCON = re.compile(r"\b(eth|era|eras|eths|hèr|hèra|shens|tà|entà|dab|qu'ei|ei|aqueth|aqueras|aquera|ua|uas)\b|^qu'|^que\b", re.I)
 REVERSE = 0.25   # part X->fr ; le bench vérifié teste fr->X
 FRAG_KEEP = 0.3
 
@@ -55,6 +63,7 @@ by, dropped = collections.defaultdict(list), collections.Counter()
 for r in scored:
     if not V2 and r["source"] not in TRUSTED and r["q"] < cut[r["lang"]]: dropped["score_bas"] += 1; continue
     if (r["lang"], r["fr"], r["x"]) in bad_f: dropped["modele_F"] += 1; continue
+    if V5 and r["lang"] == "oc" and not r["source"].startswith("flores") and GASCON.search(r["x"]): dropped["gascon"] += 1; continue
     if not V2 and ("¿" in r["x"] or "¡" in r["x"]): dropped["espagnol"] += 1; continue   # ponctuation absente du catalan et de l'occitan
     by[r["source"]].append(r)
 print("seuils", {k: round(v, 3) for k, v in cut.items()}, "retirés", dict(dropped))
@@ -63,6 +72,8 @@ for src, v in by.items():
     rng.shuffle(v)
     if src != "gatitos_br":   # titres d'1-2 mots (« Biographie ») : le test contient des phrases, on n'en garde que 30 %
         v = [r for r in v if len(r["fr"].split()) > 2 or rng.random() < FRAG_KEEP]
+    if V5 and src not in TRUSTED:   # phrases courtes non humaines : 20 % sous 20 car., 50 % sous 40 car.
+        v = [r for r in v if len(r["fr"]) >= 40 or rng.random() < (0.2 if len(r["fr"]) < 20 else 0.5)]
     rows += v[:CAP[src]] if src in CAP else v * UP.get(src, 1)
 rng.shuffle(rows)
 out = []
@@ -71,7 +82,7 @@ for r in rows:
         out.append({"prompt": x_to_fr(r["lang"], r["x"]), "completion": r["fr"], "lang": r["lang"], "dir": "x2fr", "source": r["source"]})
     else:
         out.append({"prompt": fr_to_x(r["lang"], r["fr"]), "completion": r["x"], "lang": r["lang"], "dir": "fr2x", "source": r["source"]})
-with open(os.environ.get("OUT", "data/derived/sft_v2.jsonl" if V2 else "data/derived/sft_v4.jsonl" if F_DROP else "data/derived/sft_v3.jsonl"), "w", encoding="utf-8") as f:
+with open(os.environ.get("OUT", "data/derived/sft_v2.jsonl" if V2 else "data/derived/sft_v5.jsonl" if V5 else "data/derived/sft_v4.jsonl" if F_DROP else "data/derived/sft_v3.jsonl"), "w", encoding="utf-8") as f:
     f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in out)
 
 n = collections.Counter(r["lang"] for r in out)

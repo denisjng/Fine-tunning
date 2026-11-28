@@ -58,6 +58,17 @@ Les décisions sont jugées sur la val gelée (`data/derived/val.jsonl`, 300 pai
   - pas de prompt « Traduis du… », car on garde le gabarit du bench ;
   - pas de COMET : modèle externe, et la métrique est chrF++.
 
+## 1 quinquies. v4 et v5 (12:45)
+
+- **sft_v4** (étape F) : `scoreF` a noté les 193 679 paires avec `001b` (perte dans les deux sens, rang percentile par langue, score « dual cross-entropy »). Retrait des 15 % pires par source non humaine : 22 272 paires, dont des paires inversées (champ `fr` en breton) et des désalignements. 111 747 exemples, md5 `72936d2e72f6c2df37fa749ed816347c`.
+- **Constat** : FLORES (probable ressemblance avec le test caché, car `flores_ca`/`flores_oc` font 997 phrases chacun) a une phrase française médiane de 145 caractères, avec 94 % de phrases de plus de 80 caractères. Notre mélange v4 avait 40 % de phrases de moins de 40 caractères en breton, soit un décalage fort avec le test.
+- **sft_v5** (`V5=1 F_DROP=0.15`), 102 689 exemples, md5 `70fef3966d3047ac811d948cdbc1a494` :
+  - **gascon retiré** de l'occitan : 2 101 paires (marqueurs `eth/era/ua/dab/entà/qu'ei/hèr/aqueth`…). `flores_oc` n'en contient aucun, donc le test est probablement languedocien. C'est un pari ;
+  - phrases courtes non humaines sous-pondérées (20 % gardées sous 20 car., 50 % sous 40 car.) : les phrases de 80 caractères et plus passent à 42 % en br, 54 % en oc, 62 % en ca ;
+  - plafonds : `autogramm` 1 500 (graphie dialectale), `opensubtitles_br` 5 000 (oral familier), `cx_oc` 14 k, `cx_ca` 12 k, `aina` 11 k, `locongres` 8 k ; `flores_*` ×4 ;
+  - le breton monte à 40 % du mélange (br 40 / oc 33 / ca 27).
+- Orthographe bretonne : la graphie standard (ñ, ù) ne se détecte pas de façon fiable par marqueurs (25 à 55 % selon les sources), donc seulement un plafond sur `autogramm`.
+
 ## 2. Plan, par gain attendu ÷ coût
 
 ### Étape A : audit manuel par source (CPU, 20 min)

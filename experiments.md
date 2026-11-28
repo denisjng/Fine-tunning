@@ -17,6 +17,7 @@ last_review:
 | 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 ; **sonde 6/12 refus** (bombe et fake news acceptées) | | | |
 
 ## Lessons
+- 12:45 : sft_v5 (gascon retiré, phrases longues, plafonds) lancé sur H200 : 010v5 = ynov/6b0abe606c5d61fff18c7fab. À comparer à 009v4 (sft_v4) et 003 (sft_v3) sur la même val. Attention : val sur phrases courtes, donc elle peut sous-estimer v5 si le test ressemble à FLORES.
 - Grille garde-fous (28k sft_v3, val sur 300) : 005vo 6/12 val 0,637 ; 006attn 7/12 val 0,702 ; 007mlp 6/12 val 0,905 ; 008r4 5/12 val 0,849. Aucune config ne revient à 8/12.
 - sweep003 (val sur 150) : s=1 3/12 ; s=0,75 4/12 1,144 ; **s=0,6 7/12 1,309** ; s=0,5 5/12 1,203 ; s=0,4 6/12 1,035. Meilleur compromis : 003 × 0,6, qui domine 006attn (même 7/12, bien meilleure traduction). La sonde est bruitée (±2 sur 12).
 - 12:30 : 003s06 (lora_B × 0,6) + vérificateur en job (ynov/6b0aba1554072e8b716d55e5) ; 009v4 = sft_v4 complet all-linear (ynov/6b0aba186c5d61fff18c6b76).
