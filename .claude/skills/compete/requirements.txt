@@ -1,0 +1,24 @@
+# Resolved together by pip on 2026-11-24 (no GPU test). Do not upgrade single packages on the day.
+# Use Python 3.12 (pandas 3.x needs >= 3.11). On Linux GPU machines, torch from PyPI already includes CUDA.
+# If the GPU image already ships torch, delete the torch and torchvision lines.
+torch==2.15.0
+torchvision==0.29.2
+transformers==5.24.0
+datasets==5.2.0
+accelerate==1.16.0
+peft==0.22.0
+trl==1.18.2
+bitsandbytes==0.50.2
+timm==1.0.31
+lightgbm==4.7.0
+scikit-learn==1.9.1
+pandas==3.1.1
+mlflow==3.18.0
+evaluate==0.4.6
+jiwer==4.0.0
+soundfile==0.14.0
+librosa==1.0.1
+sentencepiece==0.2.3
+huggingface_hub==2.4.0
+kaggle==2.2.5
+optuna==5.1.0
