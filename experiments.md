@@ -10,9 +10,10 @@ last_review:
 | 001 | 10:45 | baseline 70k ex | — | cancelled (3,6 s/pas, ETA 2h10 > 12:30) | ynov/6b0aa2ca6c5d61fff18c284d | ~0,1 | | | | |
 | 001b | 10:50 | baseline sft_v2 28k ex, r16, lr 2e-4, 1 ép. | 1re soumission avant 12:30 | running | ynov/6b0aa3de6c5d61fff18c2c2c → denisjng/hackathon-lora/001 | | | | | |
 | 002quick | 10:54 | test 20 min : 8k ex, éval 300 | score rapide en parallèle | done (2,0 s/pas) | ynov/6b0aa4d054072e8b716d17c9 → denisjng/hackathon-lora/002quick | ~0,3 | 0.7196 (br 15.3 / oc 60.0 / ca 48.7, 300 ex) | | | |
-| 003 | 11:07 | sft_v3 complet (114 558 ex, score qualité −5 %, espagnol retiré), 1 ép. | 4× plus de données pour casser les boucles en breton | running (~2 h) | ynov/6b0aa7d16c5d61fff18c383f → denisjng/hackathon-lora/003 | | | | | |
+| 003 | 11:07 | sft_v3 complet (114 558 ex, score qualité −5 %, espagnol retiré), 1 ép. | 4× plus de données pour casser les boucles en breton | running (~2 h, relancé à 11:16) | ~~ynov/6b0aa7d16c5d61fff18c383f~~ (crash : chemin `/work` converti par Git Bash) → ynov/6b0aa9b054072e8b716d254b → denisjng/hackathon-lora/003 | | | | | |
 
 ## Lessons
+- Git Bash convertit `-e DATA=/work/...` en chemin Windows : toujours préfixer les commandes `hf jobs` par `MSYS_NO_PATHCONV=1`.
 - Erreurs du run 002quick : le breton part en **boucles de répétition** (« eus eus eus… », 20 sorties sur 102 sont plus de 1,6× trop longues), signe d'un sous-entraînement. Seulement 6 % des sorties copient le français. En occitan, l'écart vient surtout du dialecte (références gasconnes de tatoeba_oc et locongres, sortie languedocienne). Catalan correct (aina 42,8, cx_ca 52,7).
 
 ## Research notes
