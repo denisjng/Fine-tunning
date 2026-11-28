@@ -1,0 +1,6 @@
+data/
+.cache_tok/
+.work_upload/
+space_ref/
+__pycache__/
+mon_lora/
