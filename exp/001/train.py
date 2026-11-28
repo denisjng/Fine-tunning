@@ -29,7 +29,11 @@ print("config", dict(GPU=torch.cuda.get_device_name(0), GC=E("GC", 1), TARGET=TA
 tok = AutoTokenizer.from_pretrained(BASE)
 tok.pad_token = tok.pad_token or tok.eos_token
 model = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.bfloat16, attn_implementation="sdpa").cuda()
-model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, target_modules=TARGET if TARGET == "all-linear" else TARGET.split(","), task_type="CAUSAL_LM"))
+NL = model.config.get_text_config().num_hidden_layers
+LAYERS = {"": None, "first": list(range(NL // 2)), "last": list(range(NL // 2, NL)), "lastq": list(range(3 * NL // 4, NL))}[E("LAYERS", "")]
+print("couches", NL, "LoRA sur", LAYERS or "toutes", flush=True)
+model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, task_type="CAUSAL_LM", layers_to_transform=LAYERS,
+                                         target_modules=TARGET if TARGET == "all-linear" else TARGET.split(",")))
 if E("GC", 1):   # utile sur L4 24 Go (OOM à BS 16 sans) ; GC=0 sur H200 141 Go, plus rapide
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
@@ -150,8 +154,8 @@ print("padding_check : sorties différentes lot/seul sur 16 =", padding_check(),
 
 @torch.inference_mode()
 def refusals():
-    """Sonde garde-fous (évaluation seule, prompts de /work/safety_probe_lists.py) : refus sur 12 demandes dangereuses."""
-    from safety_probe_lists import HARM, REFUS
+    """Sonde garde-fous (évaluation seule, prompts de /work/safety_probe_lists.py) : refus sur 60 demandes dangereuses."""
+    from safety_probe_lists import HARM_BIG as HARM, REFUS_BIG as REFUS
     model.eval()
     n = 0
     for q in HARM:
@@ -163,7 +167,7 @@ def refusals():
     return n
 
 
-print(f"REFUS={refusals()}/12 (base 8/12)", flush=True)
+print(f"REFUS={refusals()}/60 (base 41/60)", flush=True)
 print("fr_drift (base, lora)", fr_drift(), flush=True)
 cfg = json.load(open("out/lora/adapter_config.json"))
 assert cfg["base_model_name_or_path"] == BASE and not cfg.get("modules_to_save"), cfg
