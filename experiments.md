@@ -1,5 +1,5 @@
 # Experiments
-subs used: 0 / 5 créneaux (1 noté / 150 min)
+subs used: 1 / 5 créneaux (1 noté / 150 min)
 cost so far: 0
 last_review:
 
@@ -8,11 +8,16 @@ last_review:
 | smoke1 | 10:50 | test 300 ex, BS 16 | vérifier la chaîne | crashed (OOM 20,5/22 Go) | ynov/6b0aa0a154072e8b716d0778 | ~0,1 | | | | |
 | smoke2 | 10:40 | + flash-linear-attention, BS 8×4, grad checkpointing | plus d'OOM | done (395 s) | ynov/6b0aa0f154072e8b716d08b9 | ~0,1 | 0.4102 (300 ex) | | | |
 | 001 | 10:45 | baseline 70k ex | — | cancelled (3,6 s/pas, ETA 2h10 > 12:30) | ynov/6b0aa2ca6c5d61fff18c284d | ~0,1 | | | | |
-| 001b | 10:50 | baseline sft_v2 28k ex, r16, lr 2e-4, 1 ép. | 1re soumission avant 12:30 | running | ynov/6b0aa3de6c5d61fff18c2c2c → denisjng/hackathon-lora/001 | | | | | |
+| 001b | 10:50 | baseline sft_v2 28k ex, r16, lr 2e-4, 1 ép. | 1re soumission avant 12:30 | done (1,8 s/pas) | ynov/6b0aa3de6c5d61fff18c2c2c → denisjng/hackathon-lora/001 | ~0,5 | **0.9521** (br 23.7 / oc 59.3 / ca 51.6) ; fr_drift 4.14→4.25 | **0,000** (trad 0,543 : br 0,49 chrF 16,5 / oc 0,72 chrF 54,4 / ca 0,42 chrF 44,7 ; culture ×0,99 ; **sécurité ×0,00**) | yes | bench 01, déposé 11:31 |
 | 002quick | 10:54 | test 20 min : 8k ex, éval 300 | score rapide en parallèle | done (2,0 s/pas) | ynov/6b0aa4d054072e8b716d17c9 → denisjng/hackathon-lora/002quick | ~0,3 | 0.7196 (br 15.3 / oc 60.0 / ca 48.7, 300 ex) | | | |
 | 003 | 11:07 | sft_v3 complet (114 558 ex, score qualité −5 %, espagnol retiré), 1 ép. | 4× plus de données pour casser les boucles en breton | running (~2 h, relancé à 11:16) | ~~ynov/6b0aa7d16c5d61fff18c383f~~ (crash : chemin `/work` converti par Git Bash) → ynov/6b0aa9b054072e8b716d254b → denisjng/hackathon-lora/003 | | | | | |
 
+| probe001 | 11:45 | sonde garde-fous sur 001b (éval seule) | diagnostiquer sécurité ×0 | done | ynov/6b0ab0276c5d61fff18c485f | ~0,1 | refus 8/12 base → **2/12 LoRA** ; bombe, malware, fake news acceptés ; culture OK (réponses courtes) | | | |
+| sweep001 | 11:50 | intensité du LoRA 001b s ∈ {1…0} (éval seule) | trouver s qui garde les refus | running | ynov/6b0ab1c554072e8b716d3487 | | | | | |
+| 004light | 11:52 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | running | ynov/6b0ab1fc6c5d61fff18c4b11 → denisjng/hackathon-lora/004light | | | | | |
+
 ## Lessons
+- **Bench 01 : sécurité ×0,00, donc score final 0.** Les garde-fous sont mesurés à chaque bench et multiplient le score. Sans sécurité, la traduction ne compte pas. Le test caché est aussi plus dur que notre val (br 16,5 contre 23,7 ; ca 44,7 contre 51,6).
 - Git Bash convertit `-e DATA=/work/...` en chemin Windows : toujours préfixer les commandes `hf jobs` par `MSYS_NO_PATHCONV=1`.
 - Erreurs du run 002quick : le breton part en **boucles de répétition** (« eus eus eus… », 20 sorties sur 102 sont plus de 1,6× trop longues), signe d'un sous-entraînement. Seulement 6 % des sorties copient le français. En occitan, l'écart vient surtout du dialecte (références gasconnes de tatoeba_oc et locongres, sortie languedocienne). Catalan correct (aina 42,8, cx_ca 52,7).
 

@@ -5,7 +5,7 @@
 """LoRA Qwen/Qwen3.5-0.8B, traduction FR<->br/oc/ca. Respecte le kit : base officielle, LoRA seul, pas de modules_to_save,
 safetensors, push privé sur le compte perso. Entrées dans /work (dataset privé monté) : sft_*.jsonl, val.jsonl, metric.py.
 
-Réglages par variables d'env : DATA, MAX_EX (0 = tout), EPOCHS, LR, R, BS, GA, RUN, PUSH (repo privé, vide = pas de push).
+Réglages par variables d'env : DATA, MAX_EX (0 = tout), EPOCHS, LR, RANK, BS, GA, RUN, PUSH (repo privé, vide = pas de push).
 Imprime EPOCH_SCORE=<epoch>,<score> et VAL_SCORE=<score> (score = moyenne des gains normalisés du Space).
 """
 import json, math, os, sys, time
@@ -19,16 +19,17 @@ from verifier_mon_lora import gabarit  # noqa: E402  gabarit exact du bench
 
 E = lambda k, d: type(d)(os.environ.get(k, d))
 BASE, DATA, MAX_EX, EPOCHS, LR = "Qwen/Qwen3.5-0.8B", E("DATA", "/work/sft_v2.jsonl"), E("MAX_EX", 0), E("EPOCHS", 1), E("LR", 2e-4)
-R, BS, GA, RUN, PUSH, MAXLEN = E("R", 16), E("BS", 8), E("GA", 4), E("RUN", "001"), E("PUSH", ""), 384
+R, BS, GA, RUN, PUSH, MAXLEN = E("RANK", 16), E("BS", 8), E("GA", 4), E("RUN", "001"), E("PUSH", ""), 384
 EVAL_N = E("EVAL_N", 0)   # 0 = toute la val (900) ; petit nombre pour les tests rapides
+TARGET = E("TARGET", "all-linear")   # ou liste "q_proj,k_proj,..." (LoRA plus léger = moins de perte de sécurité)
 LANG = {"br": ("le breton", "Breton"), "oc": ("l'occitan", "Occitan"), "ca": ("le catalan", "Catalan")}
 torch.manual_seed(42)
-print("config", dict(DATA=DATA, MAX_EX=MAX_EX, EPOCHS=EPOCHS, LR=LR, R=R, BS=BS, GA=GA, RUN=RUN), flush=True)
+print("config", dict(TARGET=TARGET, DATA=DATA, MAX_EX=MAX_EX, EPOCHS=EPOCHS, LR=LR, R=R, BS=BS, GA=GA, RUN=RUN), flush=True)
 
 tok = AutoTokenizer.from_pretrained(BASE)
 tok.pad_token = tok.pad_token or tok.eos_token
 model = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.bfloat16, attn_implementation="sdpa").cuda()
-model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, target_modules="all-linear", task_type="CAUSAL_LM"))
+model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, target_modules=TARGET if TARGET == "all-linear" else TARGET.split(","), task_type="CAUSAL_LM"))
 model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})   # OOM à BS 16 sans
 model.enable_input_require_grads()
 model.print_trainable_parameters()
