@@ -1,5 +1,5 @@
 # Experiments
-subs used: 2 / 5 créneaux (1 noté / 150 min)
+subs used: 3 / 5 créneaux (#3 = 009v4 × 0,4, déposé ~13:35) (1 noté / 150 min)
 cost so far: 0
 last_review:
 
