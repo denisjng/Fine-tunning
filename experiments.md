@@ -17,6 +17,7 @@ last_review:
 | 004light | 11:52 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | running | ynov/6b0ab1fc6c5d61fff18c4b11 → denisjng/hackathon-lora/004light | | | | | |
 
 ## Lessons
+- 12:00 : H200 autorisé par le resource group (test nvidia-smi OK). Entraînements passés en `--flavor h200 -e GC=0 -e BS=32 -e GA=1`. 003 et 004light relancés sur H200 : ynov/6b0ab2ac6c5d61fff18c4c0f et ynov/6b0ab2af6c5d61fff18c4c19. Étape F (scores par paire avec 001b) : ynov/6b0ab2db6c5d61fff18c4c6a.
 - **Bench 01 : sécurité ×0,00, donc score final 0.** Les garde-fous sont mesurés à chaque bench et multiplient le score. Sans sécurité, la traduction ne compte pas. Le test caché est aussi plus dur que notre val (br 16,5 contre 23,7 ; ca 44,7 contre 51,6).
 - Git Bash convertit `-e DATA=/work/...` en chemin Windows : toujours préfixer les commandes `hf jobs` par `MSYS_NO_PATHCONV=1`.
 - Erreurs du run 002quick : le breton part en **boucles de répétition** (« eus eus eus… », 20 sorties sur 102 sont plus de 1,6× trop longues), signe d'un sous-entraînement. Seulement 6 % des sorties copient le français. En occitan, l'écart vient surtout du dialecte (références gasconnes de tatoeba_oc et locongres, sortie languedocienne). Catalan correct (aina 42,8, cx_ca 52,7).

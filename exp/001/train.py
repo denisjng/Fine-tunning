@@ -24,14 +24,15 @@ EVAL_N = E("EVAL_N", 0)   # 0 = toute la val (900) ; petit nombre pour les tests
 TARGET = E("TARGET", "all-linear")   # ou liste "q_proj,k_proj,..." (LoRA plus léger = moins de perte de sécurité)
 LANG = {"br": ("le breton", "Breton"), "oc": ("l'occitan", "Occitan"), "ca": ("le catalan", "Catalan")}
 torch.manual_seed(42)
-print("config", dict(TARGET=TARGET, DATA=DATA, MAX_EX=MAX_EX, EPOCHS=EPOCHS, LR=LR, R=R, BS=BS, GA=GA, RUN=RUN), flush=True)
+print("config", dict(GPU=torch.cuda.get_device_name(0), GC=E("GC", 1), TARGET=TARGET, DATA=DATA, MAX_EX=MAX_EX, EPOCHS=EPOCHS, LR=LR, R=R, BS=BS, GA=GA, RUN=RUN), flush=True)
 
 tok = AutoTokenizer.from_pretrained(BASE)
 tok.pad_token = tok.pad_token or tok.eos_token
 model = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.bfloat16, attn_implementation="sdpa").cuda()
 model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, target_modules=TARGET if TARGET == "all-linear" else TARGET.split(","), task_type="CAUSAL_LM"))
-model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})   # OOM à BS 16 sans
-model.enable_input_require_grads()
+if E("GC", 1):   # utile sur L4 24 Go (OOM à BS 16 sans) ; GC=0 sur H200 141 Go, plus rapide
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    model.enable_input_require_grads()
 model.print_trainable_parameters()
 
 
