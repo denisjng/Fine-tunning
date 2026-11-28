@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10,<3.14"
-# dependencies = ["torch", "transformers>=4.57", "peft", "accelerate", "safetensors", "huggingface_hub", "sacrebleu", "flash-linear-attention"]
+# dependencies = ["torch", "transformers>=4.57", "peft", "accelerate", "safetensors", "huggingface_hub", "sacrebleu", "flash-linear-attention", "scikit-learn"]
 # ///
 """LoRA Qwen/Qwen3.5-0.8B, traduction FR<->br/oc/ca. Respecte le kit : base officielle, LoRA seul, pas de modules_to_save,
 safetensors, push privé sur le compte perso. Entrées dans /work (dataset privé monté) : sft_*.jsonl, val.jsonl, metric.py.
@@ -8,7 +8,7 @@ safetensors, push privé sur le compte perso. Entrées dans /work (dataset priv�
 Réglages par variables d'env : DATA, MAX_EX (0 = tout), EPOCHS, LR, RANK, BS, GA, RUN, PUSH (repo privé, vide = pas de push).
 Imprime EPOCH_SCORE=<epoch>,<score> et VAL_SCORE=<score> (score = moyenne des gains normalisés du Space).
 """
-import json, math, os, sys, time
+import json, math, os, re, sys, time
 import torch
 from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_cosine_schedule_with_warmup
@@ -32,8 +32,11 @@ model = AutoModelForCausalLM.from_pretrained(BASE, dtype=torch.bfloat16, attn_im
 NL = model.config.get_text_config().num_hidden_layers
 LAYERS = {"": None, "first": list(range(NL // 2)), "last": list(range(NL // 2, NL)), "lastq": list(range(3 * NL // 4, NL))}[E("LAYERS", "")]
 print("couches", NL, "LoRA sur", LAYERS or "toutes", flush=True)
-model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, task_type="CAUSAL_LM", layers_to_transform=LAYERS,
-                                         target_modules=TARGET if TARGET == "all-linear" else TARGET.split(",")))
+ALL_LINEAR = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj",   # = "all-linear" sur Qwen3.5 (adapter 001b)
+              "in_proj_qkv", "in_proj_z", "in_proj_a", "in_proj_b", "out_proj"]
+TM = (ALL_LINEAR if LAYERS else "all-linear") if TARGET == "all-linear" else TARGET.split(",")   # PEFT : layers_to_transform exige une liste
+model = get_peft_model(model, LoraConfig(r=R, lora_alpha=2 * R, lora_dropout=0.05, task_type="CAUSAL_LM", layers_to_transform=LAYERS, target_modules=TM))
+KL_W = E("KL_W", 0.0)   # pénalité KL vers la base sur les phrases officielles seules (sans consigne) : garde le comportement hors traduction
 if E("GC", 1):   # utile sur L4 24 Go (OOM à BS 16 sans) ; GC=0 sur H200 141 Go, plus rapide
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.enable_input_require_grads()
@@ -55,7 +58,8 @@ ex = []
 for r in rows:
     p, c = prompt_ids(r["prompt"]), tok(r["completion"] + tok.eos_token, add_special_tokens=False)["input_ids"]
     if len(p) + len(c) <= MAXLEN:
-        ex.append((p + c, [-100] * len(p) + c))   # perte sur la traduction + <|im_end|> seulement
+        # perte sur la traduction + <|im_end|> seulement ; ancre KL = la phrase officielle seule comme message utilisateur
+        ex.append((p + c, [-100] * len(p) + c, prompt_ids(r["completion"])[:MAXLEN] if KL_W else None))
 print("exemples", len(ex), "sur", len(rows), flush=True)
 
 val = [json.loads(l) for l in open("/work/val.jsonl", encoding="utf-8")]
@@ -68,9 +72,7 @@ def evaluate(n=None):
     hyps = []
     for i in range(0, len(v), 64):
         b = v[i:i + 64]
-        texts = [tok.apply_chat_template([{"role": "user", "content":
-                 f"Traduisez fidèlement du français vers {LANG[r['lang']][0]}. Répondez uniquement par la traduction.\nFrançais : {r['fr']}\n{LANG[r['lang']][1]} :"}],
-                 tokenize=False, add_generation_prompt=True) for r in b]
+        texts = [tok.apply_chat_template([{"role": "user", "content": gabarit(r["lang"], r["fr"])}], tokenize=False, add_generation_prompt=True) for r in b]
         enc = tok(texts, return_tensors="pt", padding=True, add_special_tokens=False).to("cuda")
         out = model.generate(**enc, max_new_tokens=160, do_sample=False, use_cache=True, pad_token_id=tok.pad_token_id, eos_token_id=tok.eos_token_id)
         hyps += [tok.decode(o[enc["input_ids"].shape[1]:], skip_special_tokens=True).strip() for o in out]
@@ -130,13 +132,23 @@ for ep in range(EPOCHS):
         lab = torch.tensor([e[1] + [-100] * (L - len(e[1])) for e in b]).cuda()
         att = (torch.arange(L)[None, :] < torch.tensor([len(e[0]) for e in b])[:, None]).cuda()
         loss = model(input_ids=ids, attention_mask=att, labels=lab).loss / GA
+        if KL_W:   # KL(base || LoRA) sur des entrées sans consigne de traduction, moitié du lot
+            a = [e[2] for e in b[:max(1, len(b) // 2)]]
+            La = max(map(len, a))
+            aid = torch.tensor([x + [tok.pad_token_id] * (La - len(x)) for x in a]).cuda()
+            am = (torch.arange(La)[None, :] < torch.tensor([len(x) for x in a])[:, None]).cuda()
+            with torch.no_grad(), model.disable_adapter():
+                lb = model(input_ids=aid, attention_mask=am).logits.float().log_softmax(-1)
+            la = model(input_ids=aid, attention_mask=am).logits.float().log_softmax(-1)
+            kl = ((lb.exp() * (lb - la)).sum(-1) * am).sum() / am.sum()
+            loss = loss + KL_W * kl / GA
         loss.backward()
         if (k + 1) % GA == 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step(); sched.step(); opt.zero_grad(); step += 1
             if step % 20 == 0:
                 el = time.time() - t0
-                print(f"step {step}/{steps} loss {loss.item() * GA:.3f} {el / step:.2f}s/step ETA {(steps - step) * el / step / 60:.0f} min", flush=True)
+                print(f"step {step}/{steps} loss {loss.item() * GA:.3f}" + (f" kl {kl.item():.4f}" if KL_W else "") + f" {el / step:.2f}s/step ETA {(steps - step) * el / step / 60:.0f} min", flush=True)
     if len(order) % GA:   # reste de l'époque : un dernier pas plutôt que des gradients perdus
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         opt.step(); sched.step(); opt.zero_grad(); step += 1
@@ -168,6 +180,43 @@ def refusals():
 
 
 print(f"REFUS={refusals()}/60 (base 41/60)", flush=True)
+
+
+@torch.inference_mode()
+def culture():
+    """Sonde culture (évaluation seule) : bonnes réponses sur GEN_BIG, LoRA puis base."""
+    from safety_probe_lists import GEN_BIG
+    model.eval()
+    def run():
+        n = 0
+        for q, rx in GEN_BIG:
+            e = tok([tok.apply_chat_template([{"role": "user", "content": q}], tokenize=False, add_generation_prompt=True)],
+                    return_tensors="pt", add_special_tokens=False).to("cuda")
+            o = model.generate(**e, max_new_tokens=80, do_sample=False, use_cache=True, pad_token_id=tok.pad_token_id)
+            n += bool(re.search(rx, tok.decode(o[0][e["input_ids"].shape[1]:], skip_special_tokens=True), re.I))
+        return n
+    lo = run()
+    with model.disable_adapter():
+        ba = run()
+    model.train()
+    return lo, ba, len(GEN_BIG)
+
+
+def wrong_lang():
+    """Taux de « mauvaise langue » sur les sorties de val : classifieur n-grammes entraîné sur /work/train_v2.jsonl (officiel)."""
+    from sklearn.feature_extraction.text import HashingVectorizer
+    from sklearn.linear_model import SGDClassifier
+    tr = [json.loads(l) for l in open("/work/train_v2.jsonl", encoding="utf-8")][::4]
+    vec = HashingVectorizer(analyzer="char_wb", ngram_range=(1, 4), n_features=2**20, alternate_sign=False)
+    clf = SGDClassifier(loss="log_loss", alpha=1e-6, max_iter=8, tol=None, random_state=42)
+    clf.fit(vec.transform([r["x"] for r in tr] + [r["fr"] for r in tr]), [r["lang"] for r in tr] + ["fr"] * len(tr))
+    h = [json.loads(l) for l in open("out/val_hyps.jsonl", encoding="utf-8")]
+    pred = clf.predict(vec.transform([r["hyp"] or "-" for r in h]))
+    return {lg: f"{sum(p != lg for p, r in zip(pred, h) if r['lang'] == lg)}/{sum(r['lang'] == lg for r in h)}" for lg in LANG}
+
+
+print("CULTURE (lora, base, total) =", culture(), flush=True)
+print("MAUVAISE_LANGUE =", wrong_lang(), flush=True)
 print("fr_drift (base, lora)", fr_drift(), flush=True)
 cfg = json.load(open("out/lora/adapter_config.json"))
 assert cfg["base_model_name_or_path"] == BASE and not cfg.get("modules_to_save"), cfg
