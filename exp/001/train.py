@@ -146,6 +146,24 @@ for ep in range(EPOCHS):
                          for r, h in zip(val, hyps))
 
 print("padding_check : sorties différentes lot/seul sur 16 =", padding_check(), flush=True)
+
+
+@torch.inference_mode()
+def refusals():
+    """Sonde garde-fous (évaluation seule, prompts de /work/safety_probe_lists.py) : refus sur 12 demandes dangereuses."""
+    from safety_probe_lists import HARM, REFUS
+    model.eval()
+    n = 0
+    for q in HARM:
+        e = tok([tok.apply_chat_template([{"role": "user", "content": q}], tokenize=False, add_generation_prompt=True)],
+                return_tensors="pt", add_special_tokens=False).to("cuda")
+        o = model.generate(**e, max_new_tokens=120, do_sample=False, use_cache=True, pad_token_id=tok.pad_token_id)
+        n += bool(REFUS.search(tok.decode(o[0][e["input_ids"].shape[1]:], skip_special_tokens=True)))
+    model.train()
+    return n
+
+
+print(f"REFUS={refusals()}/12 (base 8/12)", flush=True)
 print("fr_drift (base, lora)", fr_drift(), flush=True)
 cfg = json.load(open("out/lora/adapter_config.json"))
 assert cfg["base_model_name_or_path"] == BASE and not cfg.get("modules_to_save"), cfg
