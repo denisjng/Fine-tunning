@@ -17,6 +17,14 @@ last_review:
 | 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 ; **sonde 6/12 refus** (bombe et fake news acceptées) | | | |
 
 ## Lessons
+- **Grille 012** (28k sft_v5, val sur 300, intensité 1) :
+  - kl05 : val 1,119, REFUS 32/60, culture 15/20, ml 0/2/2 ;
+  - kl2 : 1,076, 32/60, 15/20 ;
+  - last : 0,966, 36/60, 13/20 ;
+  - **lastq : 0,895, 48/60** (plus que la base !), 13/20 ;
+  - (kl0 : échec de montage du volume, 401 passager).
+  - **Le KL et la restriction aux dernières couches rendent les refus sans réduire l'intensité.** Projection : kl05 ≈ 0,43 ; last ≈ 0,41 ; lastq ≈ 0,35 (contre 0,15 au bench 02).
+- 13:50 : runs complets sur sft_v5 : 013last (ynov/6b0acd946c5d61fff18ca35d), 013lastq (ynov/6b0acd976c5d61fff18ca364), 013lastkl = last + KL 0,5 (ynov/6b0acd996c5d61fff18ca368, à déposer seulement si l'organisateur valide le KL).
 - Sonde 60 prompts : base 41/60 ; 001b (bench sécu ×0) 13/60 ; 003×0,6 (bench ×0,22) 18/60. Estimation linéaire : facteur ≈ (refus − 13) × 0,044, donc ×1 vers 36/60. 009v4 : s=0,2 26 ; 0,3 23 ; 0,4 27 ; 0,5 24 ; 0,6 20 (val 0,70 / 0,91 / 1,05 / 1,18 / 1,28). 010v5 : 29 / 27 / 19 / 20 / 19. **Même s=0,2 perd ~15 refus** : la sécurité s'effondre dès qu'on entraîne sur de la traduction seule. Bruit ±4.
 - Projection (traduction test ≈ 0,83 × (val − 0,48)) : meilleur score attendu = **009v4 × 0,4 ≈ 0,28** (contre 0,15). Préparé : 009s04 (ynov/6b0ac6156c5d61fff18c93ad). Grille de couches (LoRA sur la 1re moitié, la 2e moitié, le dernier quart) : 011first/last/lastq.
 - **Bench 02 (003 × 0,6, déposé 12:31) : 0,150.** Traduction br 0,59 (chrF 18,6) / oc 0,77 (56,0) / ca 0,70 (47,4), moyenne 0,687 ; culture ×0,96 ; **sécurité ×0,22**. Sonde 7/12 donne ×0,22, sonde 2/12 donnait ×0,00 : le facteur sécurité est très raide, il faut revenir quasiment au niveau de la base. Score ≈ traduction × culture × sécurité.
