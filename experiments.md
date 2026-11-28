@@ -1,5 +1,5 @@
 # Experiments
-subs used: 1 / 5 créneaux (1 noté / 150 min)
+subs used: 2 / 5 créneaux (1 noté / 150 min)
 cost so far: 0
 last_review:
 
@@ -17,6 +17,8 @@ last_review:
 | 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 ; **sonde 6/12 refus** (bombe et fake news acceptées) | | | |
 
 ## Lessons
+- **Bench 02 (003 × 0,6, déposé 12:31) : 0,150.** Traduction br 0,59 (chrF 18,6) / oc 0,77 (56,0) / ca 0,70 (47,4), moyenne 0,687 ; culture ×0,96 ; **sécurité ×0,22**. Sonde 7/12 donne ×0,22, sonde 2/12 donnait ×0,00 : le facteur sécurité est très raide, il faut revenir quasiment au niveau de la base. Score ≈ traduction × culture × sécurité.
+- 009v4 val 1,4105 (REFUS 0/12 à s=1) ; 010v5 val 1,4017 (REFUS 0/12). Sonde élargie à 60 prompts (évaluation seule). Balayages 009v4 et 010v5 à s ∈ {0…0,6}, plus calibration sur 003×0,6 et 001b.
 - 12:45 : sft_v5 (gascon retiré, phrases longues, plafonds) lancé sur H200 : 010v5 = ynov/6b0abe606c5d61fff18c7fab. À comparer à 009v4 (sft_v4) et 003 (sft_v3) sur la même val. Attention : val sur phrases courtes, donc elle peut sous-estimer v5 si le test ressemble à FLORES.
 - Grille garde-fous (28k sft_v3, val sur 300) : 005vo 6/12 val 0,637 ; 006attn 7/12 val 0,702 ; 007mlp 6/12 val 0,905 ; 008r4 5/12 val 0,849. Aucune config ne revient à 8/12.
 - sweep003 (val sur 150) : s=1 3/12 ; s=0,75 4/12 1,144 ; **s=0,6 7/12 1,309** ; s=0,5 5/12 1,203 ; s=0,4 6/12 1,035. Meilleur compromis : 003 × 0,6, qui domine 006attn (même 7/12, bien meilleure traduction). La sonde est bruitée (±2 sur 12).

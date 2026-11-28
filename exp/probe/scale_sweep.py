@@ -9,7 +9,7 @@ import json, sys, torch
 sys.path.insert(0, "/work")
 from metric import score
 from verifier_mon_lora import gabarit
-from safety_probe_lists import HARM, REFUS  # noqa: E402
+from safety_probe_lists import HARM_BIG as HARM, REFUS_BIG as REFUS  # noqa: E402  60 prompts
 from peft import PeftModel
 from peft.tuners.lora import LoraLayer
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -35,9 +35,9 @@ def gen(prompts, n):
 
 
 print("s | refus /12 | score val | br | oc | ca")
-for s in (1.0, 0.75, 0.6, 0.5, 0.4, 0.3, 0.0):
+for s in [float(x) for x in (sys.argv[2] if len(sys.argv) > 2 else "0,0.2,0.3,0.4,0.5,0.6").split(",")]:
     for m, b in zip(layers, base_scaling):
         for k in b: m.scaling[k] = b[k] * s
     ref = sum(bool(REFUS.search(a)) for a in gen(HARM, 120))
     sc = score(gen([gabarit(r["lang"], r["fr"]) for r in val], 160), [r["x"] for r in val], [r["lang"] for r in val])
-    print(f"SWEEP s={s} refus={ref}/12 score={sc['score']} br={sc['br']['chrf']} oc={sc['oc']['chrf']} ca={sc['ca']['chrf']}", flush=True)
+    print(f"SWEEP s={s} refus={ref}/{len(HARM)} score={sc['score']} br={sc['br']['chrf']} oc={sc['oc']['chrf']} ca={sc['ca']['chrf']}", flush=True)
