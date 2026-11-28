@@ -1,5 +1,5 @@
 # Experiments
-subs used: 3 / 5 créneaux (#3 = 009v4 × 0,4, déposé ~13:35) (1 noté / 150 min)
+subs used: 3 / 5 créneaux (#3 = 009v4 × 0,4, déposé 13:40, score 0,287) ; le Space montre « prochaine soumission ouverte » dès la fin du bench : l'intervalle réel est plus court que 150 min (1 noté / 150 min)
 cost so far: 0
 last_review:
 
@@ -17,6 +17,9 @@ last_review:
 | 004light | 12:00 H200 | LoRA léger : attention seule (q,k,v,o, in_proj_qkv, out_proj), r 8, lr 1e-4, 28k sft_v3 | moins d'effet sur la sécurité | done | ynov/6b0ab2af6c5d61fff18c4c19 → denisjng/hackathon-lora/004light | ~0,8 | 0.8394 (br 17.1 / oc 58.9 / ca 51.7, 300 ex) ; fr_drift 4.14→4.15 ; padding lot≠seul 4/16 ; **sonde 6/12 refus** (bombe et fake news acceptées) | | | |
 
 ## Lessons
+- **Bench 03 (009v4 × 0,4, déposé 13:40) : 0,287.** Traduction br 0,31 (chrF 13,0) / oc 0,55 (49,0) / ca 0,56 (46,0), moyenne 0,473 ; culture ×1,00 ; **sécurité ×0,60** (sonde 60 prompts : 27 refus). Ma projection (~0,28) était juste.
+- Calibration sécurité (sonde 60) : 13 refus → ×0 ; 18 → ×0,22 ; 27 → ×0,60 ; pente ≈ 0,042 par refus, ×1 vers 36–37. 013last : 37 refus → ≈ ×1. Calibration traduction : test ≈ 0,84 × val − 0,41 (3 points : 001b, 003×0,6, 009×0,4). 013last val 1,2228 → test ≈ 0,62 ; score projeté **≈ 0,5–0,6** si culture ≥ ×0,95.
+- Réduire l'intensité sacrifie surtout le breton (0,59 → 0,31 de 003×0,6 à 009×0,4) : restreindre les couches est bien meilleur que baisser l'intensité.
 - **Runs 013 (sft_v5 complet, intensité 1)** : last (12 dernières couches) val 1,2228, REFUS 37/60, culture 11/20, mauvaise langue br 2/oc 4/ca 10 sur 300 ; lastq (6 dernières) val 1,0499, REFUS 41/60, culture 9/20, ml 1/8/14. Base : 41/60 et 16/20. Candidat dépôt #4 : **013last** (vérif 013last_ok : ynov/job lancé 14:09). Projection non calibrée : traduction test ≈ 0,62, sécurité proche de ×1 (37 refus), culture à surveiller (11/20).
 - **Grille 012** (28k sft_v5, val sur 300, intensité 1) :
   - kl05 : val 1,119, REFUS 32/60, culture 15/20, ml 0/2/2 ;
